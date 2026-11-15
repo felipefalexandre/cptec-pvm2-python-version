@@ -1,0 +1,22 @@
+input:
+  shape: [96, 192]
+  coordinates_file: legacy/data/inputs/ylat.txt
+  legacy:
+    precipitation: legacy/data/inputs/prec.bin
+    temperature: legacy/data/inputs/temp.bin
+    par: legacy/data/inputs/ipar.bin
+    pressure: legacy/data/inputs/psup.bin
+    landmask: legacy/data/inputs/lsmk.bin
+    uwind: legacy/data/inputs/uwind.bin
+
+model:
+  co2_pa: 35.35
+  fire: true
+
+output:
+  directory: outputs/original
+  name: pvm2_original
+  netcdf: true
+  geotiff: true
+  write_legacy_binary: true
+  reference: legacy/data/reference/Lapola_et_al_T062.bin

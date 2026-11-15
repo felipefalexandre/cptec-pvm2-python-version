@@ -1,0 +1,4 @@
+1) Rodar pmv2.exe
+2) Rodar pvm5.exe
+
+O pvm2.exe surgiu de: f90 env5.f wbm4.f carbon2.f -o pvm2.exe

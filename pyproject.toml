@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pvm2"
+version = "0.1.0"
+description = "CPTEC-PVM2 potential vegetation model, Python reference implementation"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "PVM2 modernization project" }]
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "xarray>=2023.1",
+    "netCDF4>=1.6",
+    "h5netcdf>=1.1",
+    "rasterio>=1.3",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+report = ["matplotlib>=3.7", "geopandas>=0.14"]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+pvm2 = "pvm2.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

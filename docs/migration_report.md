@@ -1,0 +1,159 @@
+# Migration report
+
+## 1. Deliverables
+
+| Path | Contents |
+| --- | --- |
+| `src/pvm2/` | Python package |
+| `legacy/fortran/` | original Fortran sources, unmodified |
+| `legacy/data/` | input metadata and placement instructions; raw binaries are not redistributed |
+| `scripts/build_legacy.ps1` | reproducible legacy build (RECL adaptation only) |
+| `configs/` | legacy-binary and NetCDF input examples |
+| `experiments/original/` | reference experiment |
+| `tests/` | 38 tests and Fortran-generated fixtures |
+| `docs/` | audit, methodology, equivalence, this report |
+
+The raw inputs and the paper PDF are kept locally but excluded from the public
+repository because their licences are not stated.  Checksums and file names
+are in `legacy/data/README.md`.
+
+## 2. Package architecture
+
+```
+pvm2
+├── config.py                 YAML -> dataclasses; legacy and NetCDF loaders
+├── cli.py                    run / reproduce / convert-legacy / validate / info
+├── core
+│   ├── constants.py          single source of truth for physical constants
+│   ├── carbon.py             tetens, carbon1, carbon2
+│   ├── water_balance.py      budget_month, soil temperature, equilibrium,
+│   │                         classification, transition month, fire
+│   └── model.py              validation/preparation and top-level run
+├── io
+│   ├── legacy_binary.py      direct-access float32 reader/writer
+│   ├── netcdf.py             climate loader, NetCDF writer, summary
+│   ├── raster.py             GeoTIFF writer with regular-grid guard
+│   └── vector.py             optional polygon export helper
+└── validation
+    ├── kappa.py              skill4-compatible kappa and class remapping
+    └── report.py             HTML/JSON/PNG validation report
+```
+
+The core is grid-agnostic: every function derives `ny` and `nx` from the input
+arrays.  There is no global `NX`/`NY` and no hidden resampling.
+
+## 3. Configuration model
+
+`config.py` defines `InputConfig`, `ModelConfig`, `OutputConfig` and
+`RunConfig`.  `load_config` accepts either a YAML file or a dictionary, fills
+defaults, and resolves relative paths against the configuration file's
+directory.  Inputs are either:
+
+- `input.legacy` — six direct-access binaries plus `shape` and an optional
+  latitude file; or
+- `input.climate` — a NetCDF file with explicit variable/coordinate/unit
+  mappings.
+
+The NetCDF loader converts units only when a mapping is known.  Unmapped
+variables are passed through and the caller is responsible for units.
+
+## 4. Numerical implementation
+
+The equations are transcribed directly from the Fortran, including the
+commented-out alternatives being left disabled (for example the older runoff
+coefficient and the older available-energy fit).  Constants live in
+`core/constants.py` and are used by both the water balance and the tests.
+
+Two implementation changes are deliberate and numerically neutral:
+
+1. **Active-cell equilibrium.**  The legacy model stops iterating a cell when
+   its annual storage cycle converges.  The Python version keeps a flat array
+   of active cell indices and updates only those cells, which gives the same
+   per-cell result with an 18x speed-up.  The convergence test is unchanged.
+2. **Explicit failure for `findm`.**  The legacy code would read outside
+   `dw(12)` if no dry-to-wet transition existed.  Python raises
+   `RuntimeError` with the number of affected cells.
+
+No equation, threshold or parameter value was changed.
+
+## 5. Input handling
+
+- Binary records are read as `<f4` and reshaped to `(count, ny, nx)`; the
+  Fortran order means longitude varies fastest.  The old mistake of reshaping
+  to `(count, nx, ny)` would transpose the map.
+- `pnew.bin`/`tnew.bin` and `unew_100.bin` are accepted as aliases for the
+  delivered `prec.bin`/`temp.bin`/`uwind.bin`.
+- NetCDF climate files with a duplicated 360-degree longitude are reduced to
+  192 points by dropping the last column, after verifying that the duplicate
+  matches the first column.
+- Temperature, precipitation, PAR and wind are checked for missing values over
+  land before the run; PVM2 has no missing-data scheme.
+- The land mask is truncated to integer as in `int(lsmk)`; pressure and mask
+  shapes must match the climate grid.
+
+## 6. Output handling
+
+- NetCDF uses xarray/netCDF4 with `lat`, `lon`, `time` (month) coordinates and
+  CF-style units and long names.
+- The biome variable is named `biome` in NetCDF and `bpot` in the in-memory
+  results dictionary (legacy name).
+- A 12-record legacy bundle can be written in the exact `pvm5` order:
+  `bpot, npp, snpp, ratioNPP, hresp, csoil, d2wm, ud2w, photo, aresp, seai,
+  weti`.
+- GeoTIFF is written only when the latitude and longitude axes are regular and
+  monotonic within tolerance.  The T62 Gaussian grid is rejected with an
+  explanatory message; this is intentional rather than a silent reprojection.
+- The validation report contains the kappa metrics, per-class table,
+  confusion matrix and a map figure.
+
+## 7. Command line
+
+`pvm2` is installed as a console script.  Commands:
+
+- `run` — from YAML or NetCDF; overrides CO2, fire and maximum years.
+- `reproduce` — runs the configured experiment and writes the validation
+  report when a reference map is configured.
+- `convert-legacy` — writes a consolidated NetCDF of the six inputs.
+- `validate` — checks shapes, ranges and land-mask consistency.
+- `info` — prints a summary of a NetCDF or configuration.
+
+## 8. Testing
+
+`pytest` runs 38 tests in about 24 seconds:
+
+- scalar `carbon1`/`carbon2` against double-precision Fortran;
+- every biome rule, the fire switch and the transition-month search;
+- daily budget bounds and finiteness;
+- legacy binary and NetCDF round-trips;
+- input statistics against known values;
+- shape preservation for 8x10 and 16x24 synthetic grids;
+- full reference run against the stored Fortran biome map;
+- kappa against the observed map.
+
+Data-dependent tests are skipped automatically when the raw inputs are absent,
+so the repository remains usable without redistributing third-party data.
+
+## 9. Performance
+
+| Version | Runtime (96x192, 121 years) |
+| --- | --- |
+| Fortran, gfortran -O0 | 3.4 s |
+| Python, full-grid vectorisation | 341 s |
+| Python, active-cell vectorisation | 18.8 s |
+
+The remaining gap is interpreter overhead in the 44 000 daily iterations.
+Further optimisation (Numba or a compiled kernel) was deliberately left out
+until equivalence was established; it can be added behind the same API.
+
+## 10. Known deviations and open items
+
+- `ca` default is 35.35 Pa in Python; the delivered source hard-codes
+  51.5375 Pa.  Both are available through `--co2`.
+- GeoTIFF export for the Gaussian grid is skipped; NetCDF is authoritative.
+- `seai`/`weti` over ocean use -999.99 instead of the legacy uninitialised
+  values.
+- Kappa differs from the paper for classes 6 and 13; see
+  `docs/numerical_equivalence.md`.
+- Raw inputs and the paper PDF are not in the public repository.
+- A future release could add a COG/geolocation GeoTIFF writer for Gaussian
+  grids and optional Numba acceleration.

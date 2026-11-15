@@ -1,0 +1,30 @@
+input:
+  climate: outputs/pvm2_inputs.nc
+  variables:
+    precipitation: pr
+    temperature: tas
+    par: par
+    pressure: ps
+    landmask: lsmk
+    uwind: ua850
+  coordinates:
+    latitude: lat
+    longitude: lon
+    time: time
+  units:
+    precipitation: mm/month
+    temperature: degC
+    par: W m-2
+    pressure: hPa
+    uwind: m s-1
+  lon_duplicate: drop_last
+
+model:
+  co2_pa: 35.35
+  fire: true
+
+output:
+  directory: outputs
+  name: pvm2
+  netcdf: true
+  geotiff: true

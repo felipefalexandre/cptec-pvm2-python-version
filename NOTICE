@@ -1,0 +1,33 @@
+CPTEC-PVM2 modernization project
+================================
+
+New Python code, tests and documentation:
+  Copyright (c) 2026 PVM2 modernization project
+  Licensed under the MIT License (see LICENSE).
+
+Legacy Fortran sources in legacy/fortran/:
+  Authorship and copyright belong to the original CPTEC/INPE authors.
+  The files are included for scientific reproducibility and audit.  No
+  licence was provided with the original delivery.  They are not covered by
+  the MIT License of this repository.  Do not redistribute them separately
+  without confirming the terms with the original authors.
+
+Climate input data and observed reference map:
+  The files prec.bin, temp.bin, ipar.bin, psup.bin, lsmk.bin, uwind.bin and
+  Lapola_et_al_T062.bin are third-party scientific data.  They are not
+  included in this repository because their licences are not stated in the
+  delivery.  See legacy/data/README.md for provenance, checksums and expected
+  placement.
+
+Article:
+  Lapola, D. M. et al. A importancia da parametrizacao de fogo natural no
+  CPTEC PVM.  2006.  The PDF is not included in this repository.
+
+Model references:
+  Oyama, M. D.; Nobre, C. A. A simple potential vegetation model for coupling
+  with the Simple Biosphere Model (SiB).  Revista Brasileira de Meteorologia,
+  v. 19, n. 2, p. 203-216, 2004.
+  Lapola, D. M. et al. 2006 (see docs/legacy_code_audit.md).
+
+If you are the rights holder of any legacy asset and believe it should not be
+included, please open an issue and the material will be removed.
