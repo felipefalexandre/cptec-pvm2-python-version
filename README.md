@@ -75,7 +75,13 @@ Inspect the file:
 pvm2 info --input outputs/pvm2_inputs.nc
 ```
 
-Run the model:
+Run the model from the consolidated NetCDF inputs:
+
+```bash
+pvm2 run --config configs/example.yaml
+```
+
+or directly from the reference legacy binaries:
 
 ```bash
 pvm2 run --config experiments/original/original.yaml
@@ -133,7 +139,9 @@ output:
   write_legacy_binary: false
 ```
 
-NetCDF input with explicit variable/coordinate names and units:
+NetCDF input with explicit variable/coordinate names and units.  Monthly
+climatologies must be 3-D `(time, lat, lon)` with exactly 12 steps; `pressure`
+and `landmask` may be 2-D `(lat, lon)` or 3-D with a single time slice:
 
 ```yaml
 input:
