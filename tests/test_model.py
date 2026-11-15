@@ -65,6 +65,20 @@ def test_netcdf_roundtrip(tiny_results, tmp_path):
     ds.close()
 
 
+def test_netcdf_input_path_matches_array_input(tiny_results, tmp_path):
+    data, expected = tiny_results
+    path = tmp_path / "inputs.nc"
+    netcdf.write_inputs(path, data)
+    loaded = config.load_inputs(
+        config.InputConfig(climate=str(path))
+    )
+    assert loaded["precipitation"].shape == data["precipitation"].shape
+    assert loaded["pressure"].shape == data["pressure"].shape
+    results = model.run(loaded, co2_pa=35.35, fire=True)
+    assert np.array_equal(results["bpot"].astype(int), expected["bpot"].astype(int))
+    assert np.allclose(results["meanpp"], expected["meanpp"], atol=1e-5)
+
+
 def test_legacy_bundle_roundtrip(tiny_results, tmp_path):
     _, results = tiny_results
     path = tmp_path / "bundle.bin"

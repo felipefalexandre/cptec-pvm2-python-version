@@ -1,5 +1,7 @@
 # CPTEC-PVM2 in Python
 
+[![tests](https://github.com/felipefalexandre/cptec-pvm2-python-version/actions/workflows/tests.yml/badge.svg)](https://github.com/felipefalexandre/cptec-pvm2-python-version/actions/workflows/tests.yml)
+
 A modern Python implementation of **CPTEC-PVM2**, the potential-vegetation
 model described by Oyama & Nobre (2004) and extended with the natural-fire
 parameterisation of Lapola et al. (2006).  The original Fortran 77 sources are
@@ -20,7 +22,7 @@ environmental fields to float32 precision.
 | Kappa vs observed reference map | 0.525 (paper: 0.54) |
 | Legacy runtime (192x96 grid) | 3.4 s |
 | Python runtime (192x96 grid) | 18.8 s |
-| Tests | 38 collected; 6 skip without the raw data |
+| Tests | 39 collected; 6 skip without the raw data |
 
 Details and caveats are in `docs/numerical_equivalence.md`.
 
@@ -210,7 +212,8 @@ The suite covers:
 
 - carbon and water-balance equations against double-precision Fortran output;
 - biome rules and the fire parameterisation;
-- legacy binary and NetCDF round-trips;
+- legacy binary and NetCDF round-trips, including the consolidated NetCDF
+  input path;
 - shape preservation on two synthetic resolutions;
 - full reference run against a stored Fortran biome map and the observed map.
 

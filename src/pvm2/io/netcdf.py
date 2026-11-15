@@ -47,6 +47,27 @@ def _to_time_lat_lon(da, time_name, lat_name, lon_name):
     return da
 
 
+def _to_lat_lon(da, time_name, lat_name, lon_name):
+    """Accept a static field as 2-D or as a 3-D field with one time slice."""
+    if time_name in da.dims:
+        if da.sizes[time_name] != 1:
+            raise ValueError(
+                f"static variable {da.name!r} has {da.sizes[time_name]} "
+                "time steps; expected a single 2-D field"
+            )
+        da = da.isel({time_name: 0})
+    dims = list(da.dims)
+    present = {lat_name, lon_name}
+    if set(dims) != present:
+        raise ValueError(
+            f"static variable {da.name!r} dims {dims} do not match "
+            f"coordinates {sorted(present)}"
+        )
+    if dims != [lat_name, lon_name]:
+        da = da.transpose(lat_name, lon_name)
+    return da
+
+
 def _to_celsius(da, units):
     units = (units or "").strip().lower().replace(" ", "")
     if units in ("degc", "°c", "c", "celsius", "degrees_celsius"):
@@ -106,9 +127,13 @@ def load_climate(path, mapping, coords, units=None, lon_duplicate="drop_last"):
             if var not in ds:
                 raise KeyError(f"variable {var!r} not found in {path}")
             da = ds[var]
-            da = _to_time_lat_lon(da, time_name, lat_name, lon_name)
+            static = key in ("pressure", "landmask")
+            if static:
+                da = _to_lat_lon(da, time_name, lat_name, lon_name)
+            else:
+                da = _to_time_lat_lon(da, time_name, lat_name, lon_name)
             da = _drop_duplicate_longitude(da, lon_name, lon_duplicate)
-            if da.sizes[time_name] != 12:
+            if not static and da.sizes[time_name] != 12:
                 raise ValueError(
                     f"{var!r} has {da.sizes[time_name]} time steps; "
                     "PVM2 requires a monthly climatology of exactly 12"
@@ -119,7 +144,10 @@ def load_climate(path, mapping, coords, units=None, lon_duplicate="drop_last"):
                 da = _to_mm_per_month(
                     da, units.get(key, da.attrs.get("units")), time_name
                 )
-            da = da.transpose(time_name, lat_name, lon_name)
+            if static:
+                da = da.transpose(lat_name, lon_name)
+            else:
+                da = da.transpose(time_name, lat_name, lon_name)
             values = np.asarray(da.values, dtype=np.float64)
             values = np.where(values <= -1.0e30, np.nan, values)
             out[key] = values
