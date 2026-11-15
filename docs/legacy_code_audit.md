@@ -17,7 +17,7 @@ during the audit.
 | `skill4.f` | Kappa validation against an observed biome map. |
 | `roda_tudo.csh` | Original run script. |
 | `LEIAME` | Original readme (Portuguese). |
-| `pvm2_in`/`pvm2_out` or equivalent input files | Monthly climatologies and static fields in GrADS-style direct-access binaries. |
+| Input binaries | Monthly climatologies and static fields in GrADS-style direct-access binaries (see section 6). |
 | `Lapola_et_al_T062.bin` | **Observed** reference biome map used for kappa, not model output. |
 
 There is no stored binary output of the original model in the delivery.  The
