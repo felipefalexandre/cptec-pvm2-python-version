@@ -190,11 +190,16 @@ def cmd_prepare(args):
         cfg.input,
         target=args.target,
         custom_landmask=args.landmask,
+        bbox=args.bbox,
     )
     if args.list:
         _log("input resolutions:")
         for line in prepare._source_table(plan.resolutions).splitlines():
             _log(line.strip())
+        _log("input domains:")
+        for line in prepare._source_domains(plan.regions).splitlines():
+            _log(line.strip())
+        _log(f"common domain: {prepare._format_bounds(plan.bounds)}")
         _log(f"coarsest climate resolution: {plan.coarsest:.2f} deg")
         for warning in plan.warnings:
             _log(f"warning: {warning}")
@@ -220,7 +225,8 @@ def cmd_prepare(args):
     netcdf.write_inputs(path, data, attrs=data.get("attrs"))
     _log(
         f"prepared {data['landmask'].shape[0]} x {data['landmask'].shape[1]} "
-        f"grid at {plan.selected.resolution:g} deg"
+        f"grid at {plan.selected.resolution:g} deg "
+        f"({prepare._format_bounds(info['bounds'])})"
     )
     _log(f"wrote {path}")
     _log(f"run with: pvm2 run --input {path}")
@@ -315,6 +321,13 @@ def build_parser():
     )
     prep.add_argument("--config", required=True)
     prep.add_argument("--target", type=float, help="target resolution in degrees")
+    prep.add_argument(
+        "--bbox",
+        nargs=4,
+        type=float,
+        metavar=("LAT_MIN", "LAT_MAX", "LON_MIN", "LON_MAX"),
+        help="crop the common domain to this box (degrees)",
+    )
     prep.add_argument("--landmask", help="custom landmask NetCDF file")
     prep.add_argument("--output", help="prepared NetCDF output path")
     prep.add_argument("--list", action="store_true", help="list compatible grids")

@@ -23,13 +23,16 @@ def _write(path, name, value, lat, lon, units, monthly=True):
     ds.to_netcdf(path)
 
 
-def _case(root, temperature=20.0, temperature_units="degC", pr_lon_0_360=False):
+def _case(root, temperature=20.0, temperature_units="degC", pr_lon_0_360=False, lon_start=0.0):
     lat_half = np.arange(-29.75, 30.0, 0.5)
     lon_half = np.arange(0.25, 60.0, 0.5)
     lat_one = np.arange(-29.5, 30.0, 1.0)
     lon_one = np.arange(0.5, 60.0, 1.0)
     lat_two = np.arange(-29.0, 29.0, 2.0)
     lon_two = np.arange(1.0, 59.5, 2.0)
+    lon_half = lon_half + lon_start
+    lon_one = lon_one + lon_start
+    lon_two = lon_two + lon_start
     if pr_lon_0_360:
         lon_half = lon_half % 360.0
     paths = {
@@ -112,7 +115,7 @@ def test_prepare_uses_finer_custom_landmask_to_refine_target(tmp_path):
     _write(lsmk, "lsmk", 1.0, lat, lon, "1", monthly=False)
     plan = prepare.make_plan(cfg, custom_landmask=str(lsmk), target=2.0)
     assert plan.warnings
-    assert "aggregated" in plan.warnings[0]
+    assert any("aggregated" in item for item in plan.warnings)
     assert all(item.source != "custom" for item in plan.options)
     assert all(item.resolution >= plan.coarsest for item in plan.options)
     data, _ = prepare.execute(plan)
@@ -148,3 +151,45 @@ def test_prepare_global_source_uses_0_360_and_outputs_180_convention(tmp_path):
     assert data["lon"].min() == pytest.approx(-179.0)
     assert data["lon"].max() == pytest.approx(179.0)
     assert np.allclose(data["precipitation"], 80.0)
+
+def test_prepare_regional_0_360_inputs_are_cropped_consistently(tmp_path):
+    cfg, _ = _case(tmp_path, lon_start=300.0)
+    plan = prepare.make_plan(cfg, target=2.0)
+    assert plan.bounds["lon_min"] == pytest.approx(-60.0)
+    assert plan.bounds["lon_max"] == pytest.approx(0.0)
+    assert any("regional input domains" in item for item in plan.warnings)
+    data, info = prepare.execute(plan)
+    assert data["landmask"].shape == (29, 30)
+    assert data["lat"].min() == pytest.approx(-29.0)
+    assert data["lat"].max() == pytest.approx(27.0)
+    assert data["lon"].min() == pytest.approx(-59.0)
+    assert data["lon"].max() == pytest.approx(-1.0)
+    assert np.allclose(data["precipitation"], 100.0)
+    assert data["attrs"]["cropped"] is True
+
+
+def test_prepare_bbox_crops_global_inputs_without_changing_resolution(tmp_path):
+    lat = np.arange(-89.0, 90.0, 2.0)
+    lon = np.arange(0.0, 360.0, 2.0)
+    specs = {}
+    for key, name, value, units, monthly in (
+        ("precipitation", "pr", 80.0, "mm/month", True),
+        ("temperature", "tas", 20.0, "degC", True),
+        ("par", "par", 100.0, "W m-2", True),
+        ("pressure", "ps", 1010.0, "hPa", False),
+        ("uwind", "ua850", 3.0, "m s-1", True),
+    ):
+        path = tmp_path / f"{key}.nc"
+        _write(path, name, value, lat, lon, units, monthly)
+        specs[key] = {"path": str(path)}
+    cfg = config.InputConfig(sources=specs, bbox=(-10, 10, 20, 40))
+    plan = prepare.make_plan(cfg, target=2.0)
+    assert plan.selected.resolution == 2.0
+    data, info = prepare.execute(plan)
+    assert data["landmask"].shape == (10, 10)
+    assert data["lat"].min() == pytest.approx(-9.0)
+    assert data["lat"].max() == pytest.approx(9.0)
+    assert data["lon"].min() == pytest.approx(21.0)
+    assert data["lon"].max() == pytest.approx(39.0)
+    assert info["bounds"]["lon_min"] == pytest.approx(20.0)
+    assert data["attrs"]["cropped"] is True

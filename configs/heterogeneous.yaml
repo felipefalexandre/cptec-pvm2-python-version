@@ -1,4 +1,7 @@
 input:
+  # Optional crop of the common domain: [lat_min, lat_max, lon_min, lon_max].
+  # Regional source files are cropped automatically even without this.
+  # bbox: [-30, 15, -85, -30]
   sources:
     precipitation:
       path: data/pr.nc

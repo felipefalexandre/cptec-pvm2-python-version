@@ -20,6 +20,8 @@ class PreparationPlan:
     options: list[grid.LandmaskPreset]
     selected: grid.LandmaskPreset | None = None
     mask_override: grid.LandmaskPreset | None = None
+    bounds: dict | None = None
+    regions: dict = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
 
     @property
@@ -99,10 +101,93 @@ def _format_options(options):
     return "\n".join(lines)
 
 
+def _format_bounds(bounds):
+    if bounds is None:
+        return "unknown"
+    if bounds["lon_min"] is None:
+        lon = "global"
+    else:
+        lon = f"{bounds['lon_min']:.2f}..{bounds['lon_max']:.2f}"
+    return f"lat {bounds['lat_min']:.2f}..{bounds['lat_max']:.2f}, lon {lon}"
+
+
+def _source_domains(regions):
+    lines = []
+    for key in grid.CLIMATE_KEYS:
+        lines.append(f"  {key:14s} {_format_bounds(regions[key])}")
+    return "\n".join(lines)
+
+
+def _bbox_dict(values):
+    if values is None:
+        return None
+    if isinstance(values, dict):
+        try:
+            lat_min = float(values["lat_min"])
+            lat_max = float(values["lat_max"])
+            lon_min = float(values["lon_min"])
+            lon_max = float(values["lon_max"])
+        except KeyError as exc:
+            raise ValueError(
+                "bbox needs lat_min, lat_max, lon_min and lon_max"
+            ) from exc
+    else:
+        if len(values) != 4:
+            raise ValueError(
+                "bbox needs four values: lat_min lat_max lon_min lon_max"
+            )
+        lat_min, lat_max, lon_min, lon_max = (float(value) for value in values)
+    if lat_min >= lat_max:
+        raise ValueError("bbox lat_min must be smaller than lat_max")
+    lon_min = float(grid._normalise_lon(lon_min))
+    lon_max = float(grid._normalise_lon(lon_max))
+    if lon_min == lon_max:
+        raise ValueError("bbox lon_min and lon_max must differ")
+    if lon_min > lon_max:
+        lon_min, lon_max = lon_max, lon_min
+    return {
+        "lat_min": lat_min,
+        "lat_max": lat_max,
+        "lon_min": lon_min,
+        "lon_max": lon_max,
+    }
+
+
+def _intersect_bounds(bounds, requested):
+    if requested is None:
+        return bounds
+    lat_min = max(bounds["lat_min"], requested["lat_min"])
+    lat_max = min(bounds["lat_max"], requested["lat_max"])
+    if lat_max <= lat_min:
+        raise ValueError("requested bbox does not overlap the input latitudes")
+    if bounds["lon_min"] is None and requested["lon_min"] is None:
+        lon_min = lon_max = None
+    elif bounds["lon_min"] is None:
+        lon_min, lon_max = requested["lon_min"], requested["lon_max"]
+    elif requested["lon_min"] is None:
+        lon_min, lon_max = bounds["lon_min"], bounds["lon_max"]
+    else:
+        lon_min = max(bounds["lon_min"], requested["lon_min"])
+        lon_max = min(bounds["lon_max"], requested["lon_max"])
+        if lon_max <= lon_min:
+            raise ValueError(
+                "requested bbox does not overlap the input longitudes"
+            )
+    return {
+        "lat_min": lat_min,
+        "lat_max": lat_max,
+        "lon_min": lon_min,
+        "lon_max": lon_max,
+    }
+
+
 def select_target(plan: PreparationPlan, input_fn=input, output_fn=print):
     """Ask the user to choose among compatible land-mask grids."""
     output_fn("Input resolutions (largest cell spacing):")
     output_fn(_source_table(plan.resolutions))
+    output_fn("Input domains:")
+    output_fn(_source_domains(plan.regions))
+    output_fn(f"Common domain: {_format_bounds(plan.bounds)}")
     output_fn(
         f"Coarsest climate resolution: {plan.coarsest:.2f} deg. "
         "Climate fields will be bilinearly resampled to the chosen grid; "
@@ -131,14 +216,29 @@ def make_plan(
     target: float | None = None,
     custom_landmask: str | None = None,
     presets: list[grid.LandmaskPreset] | None = None,
+    bbox=None,
 ) -> PreparationPlan:
     sources, config_landmask = load_sources(cfg)
+    regions = {
+        key: grid.source_bounds(source) for key, source in sources.items()
+    }
+    bounds = grid.common_bounds(sources)
+    requested = _bbox_dict(bbox if bbox is not None else cfg.bbox)
+    bounds = _intersect_bounds(bounds, requested)
     resolutions = {
         key: grid.source_resolution(source["lat"], source["lon"])
         for key, source in sources.items()
     }
     coarsest = max(resolutions.values())
     warnings = []
+    regional = [key for key, item in regions.items() if not item["lon_global"]]
+    if regional:
+        warnings.append(
+            "regional input domains detected ("
+            + ", ".join(regional)
+            + "); all fields will be cropped to "
+            + _format_bounds(bounds)
+        )
 
     candidates = list(presets) if presets is not None else grid.available_presets()
     custom = None
@@ -171,6 +271,8 @@ def make_plan(
         coarsest=coarsest,
         options=options,
         mask_override=mask_override,
+        bounds=bounds,
+        regions=regions,
         warnings=warnings,
     )
     if target is not None:
@@ -200,7 +302,7 @@ def execute(plan: PreparationPlan):
         print(f"[pvm2] warning: {warning}", flush=True)
     ranges.check_sources(plan.sources)
 
-    bounds = grid.common_bounds(plan.sources)
+    bounds = plan.bounds or grid.common_bounds(plan.sources)
     target = grid.crop_preset(plan.selected, bounds)
     if plan.mask_override is not None:
         target = grid.LandmaskPreset(
@@ -237,6 +339,10 @@ def execute(plan: PreparationPlan):
             key: round(value, 6) for key, value in plan.resolutions.items()
         },
         "landmask_source": target.metadata.get("source", target.source),
+        "domain": _format_bounds(bounds),
+        "cropped": bounds["lon_min"] is not None
+        or bounds["lat_min"] > -89.0
+        or bounds["lat_max"] < 89.0,
     }
     if plan.mask_override is not None:
         out["attrs"]["landmask_refinement"] = (

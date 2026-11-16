@@ -115,3 +115,19 @@ def test_hemisphere_longitude_is_not_global():
 def test_360_longitude_is_global():
     lon = np.arange(0.0, 360.0, 1.0)
     assert grid._is_global_longitude(lon) is True
+
+def test_resample_regional_0_360_source_to_180_target():
+    source_lat = np.array([0.0, 1.0])
+    source_lon = np.array([300.0, 305.0, 310.0, 315.0])
+    target_lat = np.array([0.5])
+    target_lon = np.array([-60.0, -55.0])
+    values = np.tile(np.array([30.0, 30.5, 31.0, 31.5]), (2, 1))
+    out = grid.resample_field(
+        values,
+        source_lat,
+        source_lon,
+        target_lat,
+        target_lon,
+        periodic_lon=False,
+    )
+    assert np.allclose(out, [[30.0, 30.5]])

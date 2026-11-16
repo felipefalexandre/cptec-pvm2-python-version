@@ -22,7 +22,7 @@ environmental fields to float32 precision.
 | Kappa vs observed reference map | 0.525 (paper: 0.54) |
 | Legacy runtime (192x96 grid) | 3.4 s |
 | Python runtime (192x96 grid) | 18.4 s |
-| Tests | 67 collected |
+| Tests | 70 collected |
 
 Details and caveats are in `docs/numerical_equivalence.md`.
 
@@ -245,12 +245,18 @@ first.
 Datasets from CMIP6, ERA5, MERGE-CPTEC, CODEX or regional products often use
 different resolutions and longitude conventions.  `pvm2 prepare` inspects every
 climate field, finds the **coarsest** resolution and offers only land-mask grids
-that are at least that coarse.  Climate fields are then bilinearly resampled to
-the chosen grid and cropped to their common domain; no climate field is moved
-to a finer grid.
+that are at least that coarse.  Climate fields are then bilinearly
+resampled to the chosen grid and cropped to their common domain; no climate
+field is moved to a finer grid.
+
+Sources may be global or already cropped.  `pvm2 prepare` reports the domain
+of every input, intersects them, and keeps the target resolution unchanged, so
+a regional box in any one variable is applied consistently to all fields.  To
+crop global data explicitly, set `input.bbox` or use `--bbox`:
 
 ```yaml
 input:
+  bbox: [-30, 15, -85, -30]   # lat_min, lat_max, lon_min, lon_max
   sources:
     precipitation:
       path: data/pr.nc
@@ -270,8 +276,10 @@ input:
       path: data/lsmk.nc
 ```
 
-Each source may override `variable`, `units` and `coordinates`.  List the
-compatible targets and their order without running anything:
+Each source may override `variable`, `units` and `coordinates`.  Use
+`--bbox LAT_MIN LAT_MAX LON_MIN LON_MAX` to override the crop at run time
+(longitudes may be in `-180..180` or `0..360`).  List the domains and
+compatible targets without running anything:
 
 ```bash
 pvm2 prepare --config configs/heterogeneous.yaml --list

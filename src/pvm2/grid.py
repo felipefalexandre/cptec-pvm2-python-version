@@ -334,6 +334,8 @@ def _axis_weights(source, target, periodic=False):
         extended = np.concatenate([source - 360.0, source, source + 360.0])
         target = target % 360.0
     else:
+        source = _normalise_lon(source)
+        target = _normalise_lon(target)
         order = np.argsort(source)
         source = source[order]
         extended = source
