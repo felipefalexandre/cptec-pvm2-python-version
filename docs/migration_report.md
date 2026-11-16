@@ -142,11 +142,13 @@ so the repository remains usable without redistributing third-party data.
 | --- | --- |
 | Fortran, gfortran -O0 | 3.4 s |
 | Python, full-grid vectorisation | 341 s |
-| Python, active-cell vectorisation | 18.8 s |
+| Python, active-cell vectorisation | 18.4 s |
 
 The remaining gap is interpreter overhead in the 44 000 daily iterations.
-Further optimisation (Numba or a compiled kernel) was deliberately left out
-until equivalence was established; it can be added behind the same API.
+The Penman routines reuse the saturation vapour pressure already computed in
+`carbon1`, avoiding two redundant `tetens` evaluations per day.  Further
+optimisation (Numba or a compiled kernel) was deliberately left out until
+equivalence was established; it can be added behind the same API.
 
 ## 10. Known deviations and open items
 

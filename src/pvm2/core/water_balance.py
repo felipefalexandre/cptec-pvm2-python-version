@@ -32,12 +32,13 @@ def runoff(w, wmax):
     return 11.5 * ((w / wmax) ** 6.6)
 
 
-def potential_evapotranspiration(spre, temp, ur, rn, rc):
+def potential_evapotranspiration(spre, temp, ur, rn, rc, es=None):
     """Penman potential evapotranspiration with fixed stomatal resistance."""
     es1 = tetens(temp + 1.0)
     es2 = tetens(temp - 1.0)
     delta = (es1 - es2) / ((temp + 1.0) - (temp - 1.0))
-    es = tetens(temp)
+    if es is None:
+        es = tetens(temp)
     delta_e = es * (1.0 - ur)
     gama = spre * 1004.0 / (2.45e6 * 0.622)
     gama2 = gama * (RA + rc) / RA
@@ -46,12 +47,13 @@ def potential_evapotranspiration(spre, temp, ur, rn, rc):
     return np.maximum(evap, 0.0)
 
 
-def penman(spre, temp, w, wmax, ur, rn, rc2):
+def penman(spre, temp, w, wmax, ur, rn, rc2, es=None):
     """Actual evapotranspiration (Eq. 32), including the legacy dual test."""
     es1 = tetens(temp + 1.0)
     es2 = tetens(temp - 1.0)
     delta = (es1 - es2) / ((temp + 1.0) - (temp - 1.0))
-    es = tetens(temp)
+    if es is None:
+        es = tetens(temp)
     delta_e = es * (1.0 - ur)
 
     zero = np.zeros_like(np.asarray(delta_e))
@@ -113,8 +115,10 @@ def budget_month(
     prain = np.where(temp < TSNOW, 0.0, prec / float(ndays))
 
     for _ in range(ndays):
-        ph, ar, nppa, laia, f5 = carbon1(temp, p0, w, WMAX, ca, ipar)
-        emax = potential_evapotranspiration(p0, temp, RH, ae, RCMIN)
+        ph, ar, nppa, laia, f5, es = carbon1(
+            temp, p0, w, WMAX, ca, ipar, return_es=True
+        )
+        emax = potential_evapotranspiration(p0, temp, RH, ae, RCMIN, es=es)
 
         smelt = 2.63 + 2.55 * temp + 0.0912 * temp * prain
         smelt = np.maximum(smelt, 0.0)
@@ -137,7 +141,7 @@ def budget_month(
         rimelt = np.where(over, w_thaw - WMAX, rimelt)
         w_thaw = np.where(over, WMAX, w_thaw)
         roff = runoff(w_thaw, WMAX)
-        evap = penman(p0, temp, w_thaw, WMAX, RH, ae, rc2)
+        evap = penman(p0, temp, w_thaw, WMAX, RH, ae, rc2, es=es)
         dw = prain + smelt - evap - roff
         w_new = w_thaw + dw
         over2 = w_new > WMAX

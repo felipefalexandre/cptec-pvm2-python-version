@@ -28,8 +28,13 @@ def _water_stress(wa):
     return f5
 
 
-def carbon1(temp, p0, w, wmax, ca, ipar):
-    """Photosynthesis, autotrophic respiration and NPP (Eqs. 1-25)."""
+def carbon1(temp, p0, w, wmax, ca, ipar, return_es=False):
+    """Photosynthesis, autotrophic respiration and NPP (Eqs. 1-25).
+
+    ``return_es`` appends the saturation vapour pressure already computed for
+    the temperature term, so the water-balance routines can reuse it instead
+    of evaluating ``tetens`` again for the same temperature.
+    """
     temp = np.asarray(temp)
     p0 = np.asarray(p0)
     w = np.asarray(w)
@@ -89,6 +94,8 @@ def carbon1(temp, p0, w, wmax, ca, ipar):
     rp = 3.85 * rl
     ar = np.where(in_window, rl + rp, 0.0)
     nppa = np.maximum(ph - ar, 0.0)
+    if return_es:
+        return ph, ar, nppa, laia, f5, es
     return ph, ar, nppa, laia, f5
 
 

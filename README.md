@@ -21,7 +21,7 @@ environmental fields to float32 precision.
 | Intermediate fields vs legacy Fortran | max abs. diff <= 5.8e-5 (float32 rounding) |
 | Kappa vs observed reference map | 0.525 (paper: 0.54) |
 | Legacy runtime (192x96 grid) | 3.4 s |
-| Python runtime (192x96 grid) | 18.8 s |
+| Python runtime (192x96 grid) | 18.4 s |
 | Tests | 44 collected; 6 skip without the raw data |
 
 Details and caveats are in `docs/numerical_equivalence.md`.
