@@ -22,7 +22,7 @@ environmental fields to float32 precision.
 | Kappa vs observed reference map | 0.525 (paper: 0.54) |
 | Legacy runtime (192x96 grid) | 3.4 s |
 | Python runtime (192x96 grid) | 18.4 s |
-| Tests | 44 collected; 6 skip without the raw data |
+| Tests | 46 collected; 6 skip without the raw data |
 
 Details and caveats are in `docs/numerical_equivalence.md`.
 
@@ -152,7 +152,7 @@ output:
 
 NetCDF input with explicit variable/coordinate names and units.  Monthly
 climatologies must be 3-D `(time, lat, lon)` with exactly 12 steps; `pressure`
-and `landmask` may be 2-D `(lat, lon)` or 3-D with a single time slice:
+and `landmask` may be 2-D `(lat, lon)` or a constant 3-D field.
 
 ```yaml
 input:
@@ -176,9 +176,18 @@ input:
     uwind: m s-1
 ```
 
-Supported input units are converted only when unambiguous.  The model never
-resamples or interpolates: the output grid is exactly the input grid, and grid
-dimensions are read at runtime rather than hard-coded.
+Supported input units are converted only when unambiguous:
+
+| Variable | Accepted units |
+| --- | --- |
+| precipitation | `mm/month`, `m/month`, `mm/day`, `m/day`, `kg m-2 s-1` |
+| temperature | `degC`, `K` |
+| pressure | `hPa`/`mb`, `Pa`, `kPa` |
+| PAR | `W m-2`, `Einstein m-2 s-1` |
+| wind | `m s-1` |
+
+The model never resamples or interpolates: the output grid is exactly the
+input grid, and grid dimensions are read at runtime rather than hard-coded.
 
 ## Outputs
 

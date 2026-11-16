@@ -6,6 +6,8 @@ from pathlib import Path
 
 import numpy as np
 
+from ..core.constants import IPAR_TO_EINSTEIN
+
 try:
     import xarray as xr
 except ImportError:  # pragma: no cover
@@ -48,13 +50,14 @@ def _to_time_lat_lon(da, time_name, lat_name, lon_name):
 
 
 def _to_lat_lon(da, time_name, lat_name, lon_name):
-    """Accept a static field as 2-D or as a 3-D field with one time slice."""
+    """Accept a static field as 2-D or as a constant 3-D field."""
     if time_name in da.dims:
-        if da.sizes[time_name] != 1:
-            raise ValueError(
-                f"static variable {da.name!r} has {da.sizes[time_name]} "
-                "time steps; expected a single 2-D field"
-            )
+        if da.sizes[time_name] > 1:
+            first = da.isel({time_name: 0})
+            if not np.allclose(da.values, first.values, equal_nan=True):
+                raise ValueError(
+                    f"static variable {da.name!r} varies over time"
+                )
         da = da.isel({time_name: 0})
     dims = list(da.dims)
     present = {lat_name, lon_name}
@@ -81,6 +84,46 @@ def _to_celsius(da, units):
     raise ValueError(f"unsupported temperature units: {units!r}")
 
 
+def _to_hpa(da, units):
+    key = (units or "").strip().lower().replace(" ", "")
+    if key in ("", "hpa", "mb", "mbar", "millibar", "hectopascal"):
+        return da
+    if key in ("pa", "pascal"):
+        out = da / 100.0
+        out.attrs = dict(da.attrs)
+        out.attrs["units"] = "hPa"
+        out.attrs["comment"] = "converted from Pa"
+        return out
+    if key in ("kpa", "kilopascal"):
+        out = da * 10.0
+        out.attrs = dict(da.attrs)
+        out.attrs["units"] = "hPa"
+        out.attrs["comment"] = "converted from kPa"
+        return out
+    raise ValueError(f"unsupported pressure units: {units!r}")
+
+
+def _to_wm2(da, units):
+    key = (units or "").strip().lower().replace(" ", "")
+    if key in (
+        "",
+        "wm-2",
+        "w/m2",
+        "w/m^2",
+        "wm^-2",
+        "wm-2sr-1",
+        "wattm-2",
+    ):
+        return da
+    if key in ("einsteinm-2s-1", "einstein/m2/s", "em-2s-1"):
+        out = da * IPAR_TO_EINSTEIN
+        out.attrs = dict(da.attrs)
+        out.attrs["units"] = "W m-2"
+        out.attrs["comment"] = "converted from Einstein m-2 s-1"
+        return out
+    raise ValueError(f"unsupported PAR units: {units!r}")
+
+
 MONTH_LENGTH_DAYS = np.array(
     [31.0, 28.25, 31.0, 30.0, 31.0, 30.0, 31.0, 31.0, 30.0, 31.0, 30.0, 31.0]
 )
@@ -94,6 +137,28 @@ def _to_mm_per_month(da, units, time_name):
         out = da * 1000.0
         out.attrs = dict(da.attrs)
         out.attrs["units"] = "mm/month"
+        return out
+    if key in ("mm/day", "mmday-1", "mmd-1", "mm/d"):
+        seconds = xr.DataArray(
+            MONTH_LENGTH_DAYS,
+            dims=(time_name,),
+            coords={time_name: da[time_name]},
+        )
+        out = da * seconds
+        out.attrs = dict(da.attrs)
+        out.attrs["units"] = "mm/month"
+        out.attrs["comment"] = "converted from mm day-1 using monthly day counts"
+        return out
+    if key in ("m/day", "mday-1", "md-1", "m/d"):
+        seconds = xr.DataArray(
+            1000.0 * MONTH_LENGTH_DAYS,
+            dims=(time_name,),
+            coords={time_name: da[time_name]},
+        )
+        out = da * seconds
+        out.attrs = dict(da.attrs)
+        out.attrs["units"] = "mm/month"
+        out.attrs["comment"] = "converted from m day-1 using monthly day counts"
         return out
     if key in ("kgm-2s-1", "kg/m2/s", "kgm^-2s^-1", "kgm-2/s"):
         seconds = xr.DataArray(
@@ -140,6 +205,10 @@ def load_climate(path, mapping, coords, units=None, lon_duplicate="drop_last"):
                 )
             if key == "temperature":
                 da = _to_celsius(da, units.get(key, da.attrs.get("units")))
+            if key == "pressure":
+                da = _to_hpa(da, units.get(key, da.attrs.get("units")))
+            if key == "par":
+                da = _to_wm2(da, units.get(key, da.attrs.get("units")))
             if key == "precipitation":
                 da = _to_mm_per_month(
                     da, units.get(key, da.attrs.get("units")), time_name
