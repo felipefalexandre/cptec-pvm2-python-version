@@ -4,14 +4,14 @@
 
 | Path | Contents |
 | --- | --- |
-| `src/pvm2/` | Python package |
+| `src/pvm2/` | Python package, including `prepare.py`, `grid.py`, `ranges.py` and eight bundled lsmk presets |
 | `legacy/fortran/` | original Fortran sources, unmodified |
 | `legacy/data/` | input metadata and placement instructions; raw binaries are not redistributed |
 | `scripts/build_legacy.ps1` | reproducible legacy build (RECL adaptation and `-Co2`) |
 | `scripts/run_legacy.ps1` | runs the compiled Fortran model and writes its outputs |
-| `configs/` | legacy-binary and NetCDF input examples |
+| `configs/` | legacy-binary, NetCDF and heterogeneous-source examples |
 | `experiments/original/` | reference experiment |
-| `tests/` | 46 tests and Fortran-generated fixtures |
+| `tests/` | 67 tests and Fortran-generated fixtures |
 | `docs/` | audit, methodology, equivalence, this report |
 
 The raw inputs and the paper PDF are kept locally but excluded from the public
@@ -114,6 +114,9 @@ No equation, threshold or parameter value was changed.
 - `run` — from YAML or NetCDF; overrides CO2, fire and maximum years.
 - `reproduce` — runs the configured experiment and writes the validation
   report when a reference map is configured.
+- `prepare` — inspects per-variable grids, offers compatible bundled land-mask
+  resolutions from coarsest to finest, bilinearly resamples the climate fields
+  to the selected grid and validates plausible ranges.
 - `convert-legacy` — writes a consolidated NetCDF of the six inputs.
 - `validate` — checks shapes, ranges and land-mask consistency.
 - `compare-legacy` — compares annual, monthly and bundled fields with a local
@@ -122,7 +125,7 @@ No equation, threshold or parameter value was changed.
 
 ## 8. Testing
 
-`pytest` runs 46 tests in about 25 seconds:
+`pytest` runs 67 tests in about 45 seconds:
 
 - scalar `carbon1`/`carbon2` against double-precision Fortran;
 - every biome rule, the fire switch and the transition-month search;

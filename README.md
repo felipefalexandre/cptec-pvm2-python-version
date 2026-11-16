@@ -22,7 +22,7 @@ environmental fields to float32 precision.
 | Kappa vs observed reference map | 0.525 (paper: 0.54) |
 | Legacy runtime (192x96 grid) | 3.4 s |
 | Python runtime (192x96 grid) | 18.4 s |
-| Tests | 46 collected; 6 skip without the raw data |
+| Tests | 67 collected; 3 skip without the raw data |
 
 Details and caveats are in `docs/numerical_equivalence.md`.
 
@@ -104,6 +104,7 @@ pvm2 run --config experiments/original/original.yaml --co2 51.5375 --no-fire
 ```
 pvm2 run             run PVM2 from a NetCDF file or a YAML configuration
 pvm2 reproduce       run the configured reference experiment and validate
+pvm2 prepare         resample heterogeneous inputs onto a common lsmk grid
 pvm2 convert-legacy  convert legacy binaries to consolidated NetCDF
 pvm2 validate        check dimensions, ranges and land-mask consistency
 pvm2 compare-legacy  compare Python fields with legacy Fortran output
@@ -200,8 +201,85 @@ Supported input units are converted only when unambiguous:
 | PAR | `W m-2`, `Einstein m-2 s-1` |
 | wind | `m s-1` |
 
-The model never resamples or interpolates: the output grid is exactly the
-input grid, and grid dimensions are read at runtime rather than hard-coded.
+`pvm2 run` itself never resamples: the output grid is exactly the prepared
+input grid.  When variables come from different grids, run `pvm2 prepare`
+first.
+
+### Heterogeneous input grids
+
+Datasets from CMIP6, ERA5, MERGE-CPTEC, CODEX or regional products often use
+different resolutions and longitude conventions.  `pvm2 prepare` inspects every
+climate field, finds the **coarsest** resolution and offers only land-mask grids
+that are at least that coarse.  Climate fields are then bilinearly resampled to
+the chosen grid and cropped to their common domain; no climate field is moved
+to a finer grid.
+
+```yaml
+input:
+  sources:
+    precipitation:
+      path: data/pr.nc
+      units: mm/day
+    temperature:
+      path: data/tas.nc
+      units: K
+    par:
+      path: data/par.nc
+    pressure:
+      path: data/ps.nc
+      units: Pa
+    uwind:
+      path: data/ua850.nc
+    # optional; otherwise a bundled lsmk preset is used
+    landmask:
+      path: data/lsmk.nc
+```
+
+Each source may override `variable`, `units` and `coordinates`.  List the
+compatible targets and their order without running anything:
+
+```bash
+pvm2 prepare --config configs/heterogeneous.yaml --list
+```
+
+Choose interactively (the recommended target is the finest grid that does not
+upscale any input), or select explicitly:
+
+```bash
+pvm2 prepare --config configs/heterogeneous.yaml
+pvm2 prepare --config configs/heterogeneous.yaml --target 0.5
+pvm2 run --input outputs/prepared/pvm2_inputs_0p5.nc
+```
+
+Bundled `lsmk` presets are at 0.10, 0.25, 0.50, 1.00, 2.00, 2.50, 5.00 and
+10.00 degrees (see `src/pvm2/data/lsmk/README.md`).  They use Natural Earth
+1:10m land polygons rasterized at cell centres, not provider-specific masks.
+A user mask can be supplied with `--landmask`.  If it is not finer than the
+coarsest climate field it becomes an additional target grid; if it is finer,
+it is area-aggregated to the selected grid, so only the coastline benefits
+from the finer data while the climate fields remain on the coarser grid.
+
+Longitudes in `0..360` and `-180..180` are both accepted.  The prepared file
+uses the selected preset convention (`-180..180`).
+
+### Plausible input ranges
+
+Every run and preparation checks the converted fields before starting the
+model.  Values outside these ranges usually mean a unit or variable-mapping
+error, and `pvm2` asks for the input to be corrected:
+
+| Variable | Accepted range | Expected units |
+| --- | --- | --- |
+| precipitation | 0 to 5000 | `mm/month` |
+| temperature | -90 to 60 | `degC` |
+| PAR | 0 to 500 | `W m-2` |
+| pressure | 250 to 1100 | `hPa` |
+| uwind | -150 to 150 | `m s-1` |
+| landmask | exactly 0 or 1 | `1` |
+
+For example, temperature in Kelvin declared as `degC`, pressure in `Pa`
+declared as `hPa`, or a fractional land mask are rejected with the field name,
+observed range and expected units.  All problems are reported together.
 
 ## Outputs
 

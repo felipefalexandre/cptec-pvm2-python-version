@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from .. import ranges
 from . import water_balance
 
 
@@ -60,7 +61,7 @@ def _prepare(data):
     if np.any(np.isnan(p0[land]) | np.isnan(lsmk[land])):
         raise ValueError("pressure or landmask contains missing values over land")
 
-    return {
+    fields = {
         "precipitation": np.maximum(prec, 0.0),
         "temperature": temp,
         "par": par,
@@ -68,6 +69,8 @@ def _prepare(data):
         "landmask": lsmk,
         "uwind": uwind,
     }
+    ranges.check_inputs(fields, context="input")
+    return fields
 
 
 def run(data, co2_pa=35.35, fire=True, max_equilibrium_years=20000):

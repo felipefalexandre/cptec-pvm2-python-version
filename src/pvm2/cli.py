@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import __version__, config
+from . import __version__, config, prepare
 from .core import model
 from .io import legacy_binary, netcdf, raster, vector
 from .validation import compare as compare_module
@@ -165,6 +165,49 @@ def cmd_convert_legacy(args):
     return 0
 
 
+def cmd_prepare(args):
+    cfg = config.load_config(args.config)
+    plan = prepare.make_plan(
+        cfg.input,
+        target=args.target,
+        custom_landmask=args.landmask,
+    )
+    if args.list:
+        _log("input resolutions:")
+        for line in prepare._source_table(plan.resolutions).splitlines():
+            _log(line.strip())
+        _log(f"coarsest climate resolution: {plan.coarsest:.2f} deg")
+        for warning in plan.warnings:
+            _log(f"warning: {warning}")
+        _log("compatible land-mask grids (coarsest to finest):")
+        for line in prepare._format_options(plan.options).splitlines():
+            _log(line.strip())
+        return 0
+
+    if plan.selected is None:
+        if args.yes or not prepare.interactive_available():
+            plan.selected = plan.recommended
+            _log(
+                f"using recommended target grid: "
+                f"{plan.selected.resolution:g} deg "
+                f"({plan.selected.description})"
+            )
+        else:
+            plan.selected = prepare.select_target(plan, output_fn=_log)
+    data, info = prepare.execute(plan)
+    model._prepare(data)
+    tag = str(plan.selected.resolution).replace(".", "p")
+    path = Path(args.output or Path("outputs") / "prepared" / f"pvm2_inputs_{tag}.nc")
+    netcdf.write_inputs(path, data, attrs=data.get("attrs"))
+    _log(
+        f"prepared {data['landmask'].shape[0]} x {data['landmask'].shape[1]} "
+        f"grid at {plan.selected.resolution:g} deg"
+    )
+    _log(f"wrote {path}")
+    _log(f"run with: pvm2 run --input {path}")
+    return 0
+
+
 def cmd_validate(args):
     cfg = _config_from_args(args)
     data = config.load_inputs(cfg.input)
@@ -241,6 +284,22 @@ def build_parser():
     rep.add_argument("--max-years", type=int, dest="max_years")
     rep.add_argument("--no-geotiff", action="store_true")
     rep.set_defaults(func=cmd_reproduce)
+
+    prep = sub.add_parser(
+        "prepare",
+        help="resample heterogeneous inputs onto a common land-mask grid",
+    )
+    prep.add_argument("--config", required=True)
+    prep.add_argument("--target", type=float, help="target resolution in degrees")
+    prep.add_argument("--landmask", help="custom landmask NetCDF file")
+    prep.add_argument("--output", help="prepared NetCDF output path")
+    prep.add_argument("--list", action="store_true", help="list compatible grids")
+    prep.add_argument(
+        "--yes",
+        action="store_true",
+        help="use the recommended target without an interactive prompt",
+    )
+    prep.set_defaults(func=cmd_prepare)
 
     conv = sub.add_parser("convert-legacy", help="convert legacy binaries to NetCDF")
     conv.add_argument("--config", required=True)

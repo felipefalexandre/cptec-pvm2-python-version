@@ -30,6 +30,7 @@ DEFAULT_COORDS = {"latitude": "lat", "longitude": "lon", "time": "time"}
 class InputConfig:
     climate: str | None = None
     legacy: dict[str, str] = field(default_factory=dict)
+    sources: dict[str, dict] = field(default_factory=dict)
     shape: tuple[int, int] | None = None
     variables: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_VARIABLES))
     coordinates: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_COORDS))
@@ -81,6 +82,7 @@ def from_dict(data: dict[str, Any]) -> RunConfig:
     input_cfg = InputConfig(
         climate=inp.get("climate") or inp.get("file"),
         legacy=dict(inp.get("legacy", {}) or {}),
+        sources=dict(inp.get("sources", {}) or {}),
         shape=tuple(inp["shape"]) if inp.get("shape") else None,
         variables={**DEFAULT_VARIABLES, **(inp.get("variables", {}) or {})},
         coordinates={**DEFAULT_COORDS, **(inp.get("coordinates", {}) or {})},

@@ -23,7 +23,7 @@ forest when the zonal wind after the dry-to-wet transition is weak.
 | temperature | `T` | degC | 12 x ny x nx |
 | incident PAR | `I_par` | W m-2 | 12 x ny x nx |
 | surface pressure | `p0` | hPa | ny x nx |
-| land mask | `lsmk` | 0/1 (fractional values truncated) | ny x nx |
+| land mask | `lsmk` | 0/1 binary (fractional values rejected) | ny x nx |
 | 850 hPa zonal wind | `U` | m s-1 | 12 x ny x nx |
 | atmospheric CO2 | `ca` | Pa | scalar |
 
@@ -33,8 +33,31 @@ The model converts PAR internally:
 ipar = I_par / 2.18e5        # Einstein m-2 s-1
 ```
 
-No horizontal interpolation or resampling is performed.  The output grid is
-identical to the input grid.  Ocean cells are those with `int(lsmk) == 0`.
+`pvm2 run` performs no horizontal interpolation: the output grid is identical
+to the input grid.  Ocean cells are those with `int(lsmk) == 0`.
+
+### 2.1 Heterogeneous inputs and unit screening
+
+When variables come from different datasets, `pvm2 prepare` computes each
+field's nominal cell size (the largest spacing between adjacent cell centres)
+and takes the maximum across precipitation, temperature, PAR, pressure and
+wind as the coarsest climate resolution.  Only land-mask presets at least that
+coarse are offered, so a coarse field is never interpolated to a finer grid.
+The user selects a target interactively (or with `--target`), all climate
+fields are bilinearly resampled to that grid, and the common source domain is
+cropped using the land mask.  Longitudes in `0..360` and `-180..180` are
+normalized internally; global fields are treated as cyclic, regional fields
+are not.  A user-supplied mask finer than the target is area-averaged to the
+target grid and thresholded at 0.5, which refines the coastline without
+upscaling any climate field.
+
+Before the model starts, converted values are checked against plausible ranges
+(precipitation 0-5000 mm month-1, temperature -90 to 60 degC, PAR 0-500 W m-2,
+pressure 250-1100 hPa, wind -150 to 150 m s-1, binary land mask).  A value
+outside its range is treated as a unit or variable-mapping error rather than
+silently propagated.  The land-mask presets are built from Natural Earth
+1:10m land polygons at the nominal resolutions of common products; they are
+not provider-specific CMIP6, ERA5, CODEX or MERGE-CPTEC masks.
 
 ## 3. State variables
 

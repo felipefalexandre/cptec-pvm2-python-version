@@ -1,0 +1,38 @@
+input:
+  sources:
+    precipitation:
+      path: data/pr.nc
+      variable: pr
+      units: mm/day
+    temperature:
+      path: data/tas.nc
+      variable: tas
+      units: K
+    par:
+      path: data/par.nc
+      variable: par
+      units: W m-2
+    pressure:
+      path: data/ps.nc
+      variable: ps
+      units: Pa
+    uwind:
+      path: data/ua850.nc
+      variable: ua850
+      units: m s-1
+    # Optional.  If omitted, a bundled lsmk preset is used.
+    # landmask:
+    #   path: data/lsmk.nc
+    #   variable: lsmk
+  coordinates:
+    latitude: lat
+    longitude: lon
+    time: time
+
+model:
+  co2_pa: 35.35
+  fire: true
+
+output:
+  directory: outputs/prepared
+  name: pvm2

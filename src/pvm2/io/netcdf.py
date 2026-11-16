@@ -174,62 +174,86 @@ def _to_mm_per_month(da, units, time_name):
     raise ValueError(f"unsupported precipitation units: {units!r}")
 
 
-def load_climate(path, mapping, coords, units=None, lon_duplicate="drop_last"):
-    """Load a 12-month climatology from NetCDF into model arrays."""
+def load_field(path, key, variable, coords, units=None, lon_duplicate="drop_last"):
+    """Load one variable from NetCDF, convert units and return grid metadata."""
     _require_xarray()
-    units = units or {}
     time_name = coords.get("time", "time")
     lat_name = coords.get("latitude", "lat")
     lon_name = coords.get("longitude", "lon")
 
-    out = {}
-    attrs = {}
     with xr.open_dataset(path, decode_times=False) as ds:
-        for key in REQUIRED:
-            if key not in mapping:
-                raise KeyError(f"missing variable mapping for {key!r}")
-            var = mapping[key]
-            if var not in ds:
-                raise KeyError(f"variable {var!r} not found in {path}")
-            da = ds[var]
-            static = key in ("pressure", "landmask")
-            if static:
-                da = _to_lat_lon(da, time_name, lat_name, lon_name)
-            else:
-                da = _to_time_lat_lon(da, time_name, lat_name, lon_name)
-            da = _drop_duplicate_longitude(da, lon_name, lon_duplicate)
-            if not static and da.sizes[time_name] != 12:
-                raise ValueError(
-                    f"{var!r} has {da.sizes[time_name]} time steps; "
-                    "PVM2 requires a monthly climatology of exactly 12"
-                )
-            if key == "temperature":
-                da = _to_celsius(da, units.get(key, da.attrs.get("units")))
-            if key == "pressure":
-                da = _to_hpa(da, units.get(key, da.attrs.get("units")))
-            if key == "par":
-                da = _to_wm2(da, units.get(key, da.attrs.get("units")))
-            if key == "precipitation":
-                da = _to_mm_per_month(
-                    da, units.get(key, da.attrs.get("units")), time_name
-                )
-            if static:
-                da = da.transpose(lat_name, lon_name)
-            else:
-                da = da.transpose(time_name, lat_name, lon_name)
-            values = np.asarray(da.values, dtype=np.float64)
-            values = np.where(values <= -1.0e30, np.nan, values)
-            out[key] = values
-            attrs[key] = {
-                "source_variable": var,
-                "units": da.attrs.get("units"),
-                "source_file": str(path),
-            }
+        if variable not in ds:
+            raise KeyError(f"variable {variable!r} not found in {path}")
+        da = ds[variable]
+        static = key in ("pressure", "landmask")
+        if static:
+            da = _to_lat_lon(da, time_name, lat_name, lon_name)
+        else:
+            da = _to_time_lat_lon(da, time_name, lat_name, lon_name)
+        da = _drop_duplicate_longitude(da, lon_name, lon_duplicate)
+        if not static and da.sizes[time_name] != 12:
+            raise ValueError(
+                f"{variable!r} has {da.sizes[time_name]} time steps; "
+                "PVM2 requires a monthly climatology of exactly 12"
+            )
+        if key == "temperature":
+            da = _to_celsius(da, units or da.attrs.get("units"))
+        if key == "pressure":
+            da = _to_hpa(da, units or da.attrs.get("units"))
+        if key == "par":
+            da = _to_wm2(da, units or da.attrs.get("units"))
+        if key == "precipitation":
+            da = _to_mm_per_month(
+                da, units or da.attrs.get("units"), time_name
+            )
+        if static:
+            da = da.transpose(lat_name, lon_name)
+        else:
+            da = da.transpose(time_name, lat_name, lon_name)
+        values = np.asarray(da.values, dtype=np.float64)
+        values = np.where(values <= -1.0e30, np.nan, values)
         lat = np.asarray(ds[lat_name].values, dtype=np.float64)
         lon = np.asarray(ds[lon_name].values, dtype=np.float64)
         if lon_duplicate == "drop_last" and lon.size > 1:
             if np.isclose(lon[0] % 360.0, lon[-1] % 360.0):
                 lon = lon[:-1]
+        attrs = {
+            "source_variable": variable,
+            "units": da.attrs.get("units"),
+            "source_file": str(path),
+        }
+    return {"values": values, "lat": lat, "lon": lon, "attrs": attrs}
+
+
+def load_climate(path, mapping, coords, units=None, lon_duplicate="drop_last"):
+    """Load a 12-month climatology from NetCDF into model arrays."""
+    _require_xarray()
+    units = units or {}
+    out = {}
+    attrs = {}
+    lat = lon = None
+    for key in REQUIRED:
+        if key not in mapping:
+            raise KeyError(f"missing variable mapping for {key!r}")
+        field = load_field(
+            path,
+            key,
+            mapping[key],
+            coords,
+            units.get(key),
+            lon_duplicate,
+        )
+        out[key] = field["values"]
+        attrs[key] = field["attrs"]
+        if lat is None:
+            lat, lon = field["lat"], field["lon"]
+        elif not (
+            np.allclose(lat, field["lat"], equal_nan=True)
+            and np.allclose(lon, field["lon"], equal_nan=True)
+        ):
+            raise ValueError(
+                f"{path}: variables are not on the same latitude/longitude grid"
+            )
     out["lat"] = lat
     out["lon"] = lon
     out["attrs"] = attrs

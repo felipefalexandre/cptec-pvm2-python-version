@@ -30,6 +30,9 @@ pvm2 = "pvm2.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+pvm2 = ["data/lsmk/*.nc", "data/lsmk/*.md"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
