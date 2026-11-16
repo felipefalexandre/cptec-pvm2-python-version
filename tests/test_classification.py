@@ -93,6 +93,16 @@ def test_transition_month_detects_dry_to_wet():
     assert month[0, 0] == 2
 
 
+def test_transition_outputs_are_one_based():
+    wsoil2 = np.array(
+        [5.0, 4.0, 3.0, 2.0, 1.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    ).reshape(12, 1, 1)
+    uwind = np.arange(1.0, 13.0).reshape(12, 1, 1)
+    d2wm, ud2w = wb.transition_and_wind(wsoil2, uwind, np.ones((1, 1), dtype=bool))
+    assert d2wm[0, 0] == 6.0
+    assert ud2w[0, 0] == 7.0
+
+
 def test_budget_month_conserves_bounds():
     out = wb.budget_month(
         0,

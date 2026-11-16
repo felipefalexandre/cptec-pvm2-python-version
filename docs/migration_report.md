@@ -10,7 +10,7 @@
 | `scripts/build_legacy.ps1` | reproducible legacy build (RECL adaptation only) |
 | `configs/` | legacy-binary and NetCDF input examples |
 | `experiments/original/` | reference experiment |
-| `tests/` | 40 tests and Fortran-generated fixtures |
+| `tests/` | 41 tests and Fortran-generated fixtures |
 | `docs/` | audit, methodology, equivalence, this report |
 
 The raw inputs and the paper PDF are kept locally but excluded from the public
@@ -119,7 +119,7 @@ No equation, threshold or parameter value was changed.
 
 ## 8. Testing
 
-`pytest` runs 40 tests in about 26 seconds:
+`pytest` runs 41 tests in about 26 seconds:
 
 - scalar `carbon1`/`carbon2` against double-precision Fortran;
 - every biome rule, the fire switch and the transition-month search;

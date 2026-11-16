@@ -60,6 +60,8 @@ Annual environmental fields vs `ambientais4_100.bin` (land cells only):
 | `maresp` | 3.9e-6 | |
 | `seai` | 0 differing land cells | ocean is undefined in the legacy binary |
 | `weti` | 0 differing land cells | ocean is undefined in the legacy binary |
+| `d2wm` | 0 | exact; reported as months 1-12, as in `findm` |
+| `ud2w` | 0 | exact |
 
 Monthly fields:
 

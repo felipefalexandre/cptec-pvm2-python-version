@@ -540,7 +540,7 @@ def transition_and_wind(wsoil2, uwind, land):
     for k in range(12):
         take = valid & (mr == k)
         ud2w = np.where(take, uwind[k], ud2w)
-    d2wm = np.where(valid, month.astype(np.float64), d2wm)
+    d2wm = np.where(valid, (month + 1).astype(np.float64), d2wm)
     return d2wm, ud2w
 
 

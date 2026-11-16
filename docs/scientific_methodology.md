@@ -288,7 +288,8 @@ the first match wins; ocean cells are class 0.
 
 For each land cell with valid `wsoil2`, `findm` chooses the first local
 minimum of the seasonal soil-water cycle whose next-month increase is at
-least `(max(w)-min(w))/8`.  The U-wind of the following month is `ud2w`.
+least `(max(w)-min(w))/8`.  The transition month is reported as 1-12, as in
+the legacy `findm`, and the U-wind of the following month is `ud2w`.
 
 If `fire = true`, savanna cells (`bpot = 6`) with `ud2w > 1.5 m s-1` are
 reclassified as tropical seasonal forest (`bpot = 13`).  This is the complete

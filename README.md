@@ -18,11 +18,11 @@ environmental fields to float32 precision.
 | Item | Result |
 | --- | --- |
 | Biome map vs legacy Fortran (`ca=35.35 Pa`, fire on) | 100% identical |
-| Intermediate fields vs legacy Fortran | max abs. diff <= 2.0e-5 (float32 rounding) |
+| Intermediate fields vs legacy Fortran | max abs. diff <= 5.8e-5 (float32 rounding) |
 | Kappa vs observed reference map | 0.525 (paper: 0.54) |
 | Legacy runtime (192x96 grid) | 3.4 s |
 | Python runtime (192x96 grid) | 18.8 s |
-| Tests | 40 collected; 6 skip without the raw data |
+| Tests | 41 collected; 6 skip without the raw data |
 
 Details and caveats are in `docs/numerical_equivalence.md`.
 
