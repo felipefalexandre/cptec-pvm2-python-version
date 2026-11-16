@@ -286,7 +286,8 @@ lower than in the paper.  Candidate causes are listed in section 10.
 9. **Kappa remapping.**  Class 13 and 20 must be remapped before comparison;
    remapping twice corrupts ice (20 -> 13 -> 12).
 10. **Data licences.**  The climate binaries and observed map have no stated
-    licence in the delivery.  They are not redistributed in this repository.
+    licence in the delivery.  They are included for reproducibility and are
+    not covered by the MIT License; see `NOTICE` and `legacy/data/README.md`.
 11. **Gaussian latitudes.**  A single affine GeoTIFF transform cannot represent
     the T62 Gaussian y-axis exactly; the exporter therefore uses per-cell GCPs
     stored in a `.tif.aux.xml` sidecar.

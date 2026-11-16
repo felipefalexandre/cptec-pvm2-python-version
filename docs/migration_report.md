@@ -6,17 +6,19 @@
 | --- | --- |
 | `src/pvm2/` | Python package, including `prepare.py`, `grid.py`, `ranges.py` and eight bundled lsmk presets |
 | `legacy/fortran/` | original Fortran sources, unmodified |
-| `legacy/data/` | input metadata and placement instructions; raw binaries are not redistributed |
+| `legacy/data/` | default inputs, observed reference map and QGIS palette |
 | `scripts/build_legacy.ps1` | reproducible legacy build (RECL adaptation and `-Co2`) |
 | `scripts/run_legacy.ps1` | runs the compiled Fortran model and writes its outputs |
+| `scripts/check_installation.ps1` | runs tests, validates inputs and checks the reference kappa/figure |
 | `configs/` | legacy-binary, NetCDF and heterogeneous-source examples |
 | `experiments/original/` | reference experiment |
 | `tests/` | 67 tests and Fortran-generated fixtures |
-| `docs/` | audit, methodology, equivalence, this report |
+| `docs/` | audit, methodology, equivalence, reference-article check, this report |
 
-The raw inputs and the paper PDF are kept locally but excluded from the public
-repository because their licences are not stated.  Checksums and file names
-are in `legacy/data/README.md`.
+The default inputs and the observed reference map are included so a fresh
+clone can reproduce the reference experiment.  Their licence is not stated
+and they are not covered by the MIT License; the paper PDF is not included.
+Checksums and provenance are in `legacy/data/README.md`.
 
 ## 2. Package architecture
 
@@ -137,8 +139,8 @@ No equation, threshold or parameter value was changed.
 - full reference run against the stored Fortran biome map;
 - kappa against the observed map.
 
-Data-dependent tests are skipped automatically when the raw inputs are absent,
-so the repository remains usable without redistributing third-party data.
+Data-dependent tests are skipped automatically when the bundled inputs are
+missing, so an incomplete checkout still runs the remaining tests.
 
 ## 9. Performance
 

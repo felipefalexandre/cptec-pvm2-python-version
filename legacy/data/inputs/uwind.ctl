@@ -1,4 +1,4 @@
-DSET ^uwnd.bin
+DSET ^uwind.bin
 OPTIONS little_endian
 UNDEF -999.99
 TITLE U-wind 850 hPa

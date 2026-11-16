@@ -12,10 +12,7 @@ build/
 dist/
 outputs/
 
-# Local raw data (third-party, see NOTICE)
-legacy/data/inputs/*.bin
-legacy/data/inputs/*.nc
-legacy/data/reference/*.bin
+# Local reference PDF (third-party, see NOTICE)
 legacy/pdf/
 lapola_text.txt
 

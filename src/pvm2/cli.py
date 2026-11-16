@@ -141,6 +141,18 @@ def cmd_reproduce(args):
             metrics["agreement_percent"], metrics["kappa"]
         )
     )
+    if cfg.output.geotiff:
+        reference_tif = (
+            Path(cfg.output.directory)
+            / f"{cfg.output.name}_reference_biome.tif"
+        )
+        try:
+            raster.write_geotiff(
+                reference_tif, observed, data["lat"], data["lon"]
+            )
+            _log(f"wrote {reference_tif}")
+        except ValueError as exc:
+            _log(f"reference GeoTIFF skipped: {exc}")
     path = report.write_validation_report(
         Path("reports") / "scientific_validation.html",
         metrics,
@@ -149,6 +161,13 @@ def cmd_reproduce(args):
         extra={"manifest": manifest, "reference": cfg.output.reference},
     )
     _log(f"wrote {path}")
+    if args.min_kappa is not None and metrics["kappa"] < args.min_kappa:
+        _log(
+            "kappa {:.4f} is below the required minimum {:.4f}".format(
+                metrics["kappa"], args.min_kappa
+            )
+        )
+        return 1
     return 0
 
 
@@ -283,6 +302,11 @@ def build_parser():
     rep.add_argument("--no-fire", dest="fire", action="store_false")
     rep.add_argument("--max-years", type=int, dest="max_years")
     rep.add_argument("--no-geotiff", action="store_true")
+    rep.add_argument(
+        "--min-kappa",
+        type=float,
+        help="fail if the kappa against the reference map is below this value",
+    )
     rep.set_defaults(func=cmd_reproduce)
 
     prep = sub.add_parser(

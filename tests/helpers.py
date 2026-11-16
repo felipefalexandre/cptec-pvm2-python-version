@@ -14,7 +14,7 @@ def has_legacy_data():
 
 requires_legacy_data = pytest.mark.skipif(
     not has_legacy_data(),
-    reason="legacy input binaries are not redistributed; see legacy/data/README.md",
+    reason="legacy input binaries are missing; see legacy/data/README.md",
 )
 
 

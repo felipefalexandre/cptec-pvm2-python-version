@@ -22,7 +22,7 @@ environmental fields to float32 precision.
 | Kappa vs observed reference map | 0.525 (paper: 0.54) |
 | Legacy runtime (192x96 grid) | 3.4 s |
 | Python runtime (192x96 grid) | 18.4 s |
-| Tests | 67 collected; 3 skip without the raw data |
+| Tests | 67 collected |
 
 Details and caveats are in `docs/numerical_equivalence.md`.
 
@@ -43,22 +43,22 @@ pvm2 --version
 
 ## Input data
 
-The raw climate and land-mask binaries are **not redistributed** in this
-repository because their original licences are not stated.  Place the files
-delivered with the legacy model in `legacy/data/inputs/`:
+The default climate, land-mask and reference data are included so that a
+fresh clone can run the reference experiment without external downloads:
 
 ```
 legacy/data/inputs/
     prec.bin  temp.bin  ipar.bin  psup.bin  lsmk.bin  uwind.bin
-    ylat.txt
+    prec.nc   temp.nc   uwnd.nc   *.ctl     ylat.txt
 legacy/data/reference/
     Lapola_et_al_T062.bin
+    vegetacao_referencia.qml
 ```
 
-See `legacy/data/README.md` for sizes, checksums and provenance.  Tests that
-need these files are skipped automatically when they are absent.
-
-The reference experiment configuration is
+The binaries and the observed reference map are third-party scientific data;
+their original licence is not stated.  They are included only for scientific
+reproducibility.  See `legacy/data/README.md` for sizes, checksums and
+provenance.  The reference experiment configuration is
 `experiments/original/original.yaml`.
 
 ## Quick start
@@ -98,6 +98,41 @@ Override model settings from the command line:
 ```bash
 pvm2 run --config experiments/original/original.yaml --co2 51.5375 --no-fire
 ```
+
+## Installation check and reference figure
+
+Run the automated check before starting new experiments:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/check_installation.ps1
+```
+
+The script runs the test suite, validates the bundled inputs, runs the
+reference experiment with `ca = 35.35 Pa` and fire on, and requires
+`kappa >= 0.50` against the observed natural-vegetation map.  The expected
+value is `kappa = 0.525` (`agreement = 89.72%`).  The same steps manually:
+
+```bash
+pytest -q
+pvm2 validate --config experiments/original/original.yaml
+pvm2 reproduce --config experiments/original/original.yaml --min-kappa 0.50
+```
+
+`reproduce` writes:
+
+```
+outputs/original/pvm2_original_biome.tif              simulated potential vegetation
+outputs/original/pvm2_original_reference_biome.tif    observed natural vegetation
+outputs/original/pvm2_original.nc                     full model output
+reports/scientific_validation.html                    kappa and map comparison
+```
+
+To compare with Figure 1b of Lapola et al. (2009) on page 5, open both
+GeoTIFFs in QGIS and load the style
+`legacy/data/reference/vegetacao_referencia.qml`.  The simulated map should
+show the same biome classes and colours as the published potential-vegetation
+panel.  The article citation, DOI and a description of the check are in
+`docs/reference_lapola_2009.md`.
 
 ## Command line
 
@@ -291,6 +326,8 @@ observed range and expected units.  All problems are reported together.
   accompanying `.tif.aux.xml` sidecar (keep both files together).
 - `pvm2_<name>_legacy.bin` — optional 12-record bundle in the original
   `pvm5` order.
+- `pvm2_<name>_reference_biome.tif` — observed reference map written by
+  `reproduce`, using the same grid as the simulated map for QGIS comparison.
 
 Main NetCDF variables include `biome` (potential vegetation class), `tmin`,
 `meanpp`, `seanpp`, `meanhr`, `meancs`, `mphoto`, `maresp`, `seai`, `weti`,
@@ -355,6 +392,8 @@ The full reference test takes about 20 seconds; the rest take about 3 seconds.
   limitations.
 - `docs/migration_report.md` — architecture of the Python package and the
   migration decisions.
+- `docs/reference_lapola_2009.md` — article citation, DOI and the Figure 1b
+  installation check.
 
 ## Provenance and licence
 
@@ -372,3 +411,7 @@ If you use this implementation, cite the model papers:
   v. 19, n. 2, p. 203-216, 2004.
 - Lapola, D. M. et al. A importância da parametrização de fogo natural no
   CPTEC PVM. 2006. (See `docs/legacy_code_audit.md` for the full reference.)
+- Lapola, D. M.; Oyama, M. D.; Nobre, C. A. Exploring the range of climate
+  biome projections for tropical South America: the role of CO2 fertilization
+  and seasonality. *Global Biogeochemical Cycles*, v. 23, GB3002, 2009.
+  https://doi.org/10.1029/2008GB003357

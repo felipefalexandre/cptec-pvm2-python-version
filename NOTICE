@@ -14,14 +14,20 @@ Legacy Fortran sources in legacy/fortran/:
 
 Climate input data and observed reference map:
   The files prec.bin, temp.bin, ipar.bin, psup.bin, lsmk.bin, uwind.bin and
-  Lapola_et_al_T062.bin are third-party scientific data.  They are not
-  included in this repository because their licences are not stated in the
-  delivery.  See legacy/data/README.md for provenance, checksums and expected
-  placement.
+  Lapola_et_al_T062.bin are third-party scientific data.  They are included
+  for scientific reproducibility, but their licences are not stated in the
+  original delivery and they are not covered by the MIT License.  The QGIS
+  palette vegetacao_referencia.qml is included with the reference material.
+  See legacy/data/README.md for provenance, checksums and placement.  Rights
+  holders may open an issue to request removal.
 
 Article:
-  Lapola, D. M. et al. A importancia da parametrizacao de fogo natural no
-  CPTEC PVM.  2006.  The PDF is not included in this repository.
+  Lapola, D. M.; Oyama, M. D.; Nobre, C. A. Exploring the range of climate
+  biome projections for tropical South America: the role of CO2 fertilization
+  and seasonality.  Global Biogeochemical Cycles, v. 23, GB3002, 2009.
+  DOI: 10.1029/2008GB003357.  The publisher PDF is not included in this
+  repository.  The older technical report by Lapola et al. (2006) is also not
+  included.
 
 Model references:
   Oyama, M. D.; Nobre, C. A. A simple potential vegetation model for coupling
