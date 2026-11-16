@@ -13,6 +13,7 @@ import numpy as np
 from . import __version__, config
 from .core import model
 from .io import legacy_binary, netcdf, raster, vector
+from .validation import compare as compare_module
 from .validation import kappa as kappa_module
 from .validation import report
 
@@ -176,6 +177,30 @@ def cmd_validate(args):
     return 0
 
 
+def cmd_compare_legacy(args):
+    result = compare_module.compare_legacy(args.fortran_dir, args.python)
+    for key, check in result["checks"].items():
+        if check["max_abs"] is None:
+            detail = "no comparable cells"
+        else:
+            detail = (
+                f"n={check['n']:6d} max={check['max_abs']:.3e} "
+                f"mean={check['mean_abs']:.3e} atol={check['atol']:.1e}"
+            )
+        status = "ok" if check["passed"] else "FAIL"
+        _log(f"{key:28s} {detail} {status}")
+    if args.report:
+        path = Path(args.report)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+        _log(f"wrote {path}")
+    if result["passed"]:
+        _log("all compared fields are within tolerance")
+        return 0
+    _log("one or more fields differ beyond tolerance")
+    return 1
+
+
 def cmd_info(args):
     if args.input:
         summary = netcdf.summarize(args.input)
@@ -230,6 +255,14 @@ def build_parser():
     info.add_argument("--input")
     info.add_argument("--config")
     info.set_defaults(func=cmd_info)
+
+    cmp = sub.add_parser(
+        "compare-legacy", help="compare Python fields with legacy Fortran output"
+    )
+    cmp.add_argument("--fortran-dir", required=True)
+    cmp.add_argument("--python", required=True, help="Python result NetCDF file")
+    cmp.add_argument("--report", help="optional JSON report path")
+    cmp.set_defaults(func=cmd_compare_legacy)
     return parser
 
 

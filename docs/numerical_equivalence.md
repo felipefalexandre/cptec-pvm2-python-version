@@ -154,6 +154,8 @@ pvm2 run --config experiments/original/original.yaml
 
 # 3. compare
 pytest tests/test_model.py -q
+pvm2 compare-legacy --fortran-dir build/ca350/outputs \
+  --python outputs/original/pvm2_original.nc
 pvm2 reproduce --config experiments/original/original.yaml
 ```
 

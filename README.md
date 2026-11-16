@@ -22,7 +22,7 @@ environmental fields to float32 precision.
 | Kappa vs observed reference map | 0.525 (paper: 0.54) |
 | Legacy runtime (192x96 grid) | 3.4 s |
 | Python runtime (192x96 grid) | 18.8 s |
-| Tests | 41 collected; 6 skip without the raw data |
+| Tests | 44 collected; 6 skip without the raw data |
 
 Details and caveats are in `docs/numerical_equivalence.md`.
 
@@ -106,7 +106,18 @@ pvm2 run             run PVM2 from a NetCDF file or a YAML configuration
 pvm2 reproduce       run the configured reference experiment and validate
 pvm2 convert-legacy  convert legacy binaries to consolidated NetCDF
 pvm2 validate        check dimensions, ranges and land-mask consistency
+pvm2 compare-legacy  compare Python fields with legacy Fortran output
 pvm2 info            describe a NetCDF or configuration file
+```
+
+Compare every annual, monthly and bundled field against the local Fortran
+build:
+
+```bash
+pvm2 compare-legacy \
+  --fortran-dir build/ca350/outputs \
+  --python outputs/original/pvm2_original.nc \
+  --report reports/field_comparison.json
 ```
 
 Use `pvm2 <command> --help` for all options.
@@ -227,7 +238,9 @@ The suite covers:
 - legacy binary and NetCDF round-trips, including the consolidated NetCDF
   input path;
 - shape preservation on two synthetic resolutions;
-- full reference run against a stored Fortran biome map and the observed map.
+- full reference run against a stored Fortran biome map and the observed map;
+- field-by-field comparison with the legacy annual, monthly and 12-record
+  bundle outputs.
 
 The full reference test takes about 20 seconds; the rest take about 3 seconds.
 
