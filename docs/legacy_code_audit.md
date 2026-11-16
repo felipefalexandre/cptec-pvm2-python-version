@@ -285,7 +285,8 @@ lower than in the paper.  Candidate causes are listed in section 10.
 10. **Data licences.**  The climate binaries and observed map have no stated
     licence in the delivery.  They are not redistributed in this repository.
 11. **Gaussian latitudes.**  A single affine GeoTIFF transform cannot represent
-    the T62 Gaussian y-axis exactly.
+    the T62 Gaussian y-axis exactly; the exporter therefore uses per-cell GCPs
+    stored in a `.tif.aux.xml` sidecar.
 12. **Compiler and libm differences.**  `exp`, `sqrt` and power intrinsics can
     differ in the last bits between compilers; this is unavoidable at float32
     and is why the acceptance criterion is class-level agreement plus
@@ -334,6 +335,6 @@ Design decisions:
 | 4 | Kappa consistent with published values | yes (0.525 vs 0.54) |
 | 5 | Bit-identical output against original executable | not possible: no original output, compiler-dependent |
 
-The Python package also passes 39 automated tests, including shape preservation
+The Python package also passes 40 automated tests, including shape preservation
 on two synthetic grids and double-precision Fortran scalar checks for
 `carbon1`/`carbon2`.

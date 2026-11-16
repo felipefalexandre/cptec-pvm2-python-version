@@ -10,7 +10,7 @@
 | `scripts/build_legacy.ps1` | reproducible legacy build (RECL adaptation only) |
 | `configs/` | legacy-binary and NetCDF input examples |
 | `experiments/original/` | reference experiment |
-| `tests/` | 39 tests and Fortran-generated fixtures |
+| `tests/` | 40 tests and Fortran-generated fixtures |
 | `docs/` | audit, methodology, equivalence, this report |
 
 The raw inputs and the paper PDF are kept locally but excluded from the public
@@ -100,9 +100,9 @@ No equation, threshold or parameter value was changed.
 - A 12-record legacy bundle can be written in the exact `pvm5` order:
   `bpot, npp, snpp, ratioNPP, hresp, csoil, d2wm, ud2w, photo, aresp, seai,
   weti`.
-- GeoTIFF is written only when the latitude and longitude axes are regular and
-  monotonic within tolerance.  The T62 Gaussian grid is rejected with an
-  explanatory message; this is intentional rather than a silent reprojection.
+- GeoTIFF uses a north-up affine transform for regular axes.  The T62 Gaussian
+  grid is written with per-cell ground control points in a `.tif.aux.xml`
+  sidecar; no silent reprojection is performed.
 - The validation report contains the kappa metrics, per-class table,
   confusion matrix and a map figure.
 
@@ -119,7 +119,7 @@ No equation, threshold or parameter value was changed.
 
 ## 8. Testing
 
-`pytest` runs 39 tests in about 29 seconds:
+`pytest` runs 40 tests in about 26 seconds:
 
 - scalar `carbon1`/`carbon2` against double-precision Fortran;
 - every biome rule, the fire switch and the transition-month search;
@@ -150,11 +150,12 @@ until equivalence was established; it can be added behind the same API.
 
 - `ca` default is 35.35 Pa in Python; the delivered source hard-codes
   51.5375 Pa.  Both are available through `--co2`.
-- GeoTIFF export for the Gaussian grid is skipped; NetCDF is authoritative.
+- GCP-based GeoTIFFs need their `.tif.aux.xml` sidecar; NetCDF is the
+  self-contained authoritative product.
 - `seai`/`weti` over ocean use -999.99 instead of the legacy uninitialised
   values.
 - Kappa differs from the paper for classes 6 and 13; see
   `docs/numerical_equivalence.md`.
 - Raw inputs and the paper PDF are not in the public repository.
-- A future release could add a COG/geolocation GeoTIFF writer for Gaussian
+- A future release could add a self-contained resampled COG for Gaussian
   grids and optional Numba acceleration.

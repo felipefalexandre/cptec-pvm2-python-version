@@ -22,7 +22,7 @@ environmental fields to float32 precision.
 | Kappa vs observed reference map | 0.525 (paper: 0.54) |
 | Legacy runtime (192x96 grid) | 3.4 s |
 | Python runtime (192x96 grid) | 18.8 s |
-| Tests | 39 collected; 6 skip without the raw data |
+| Tests | 40 collected; 6 skip without the raw data |
 
 Details and caveats are in `docs/numerical_equivalence.md`.
 
@@ -174,7 +174,9 @@ dimensions are read at runtime rather than hard-coded.
 `run` writes:
 
 - `pvm2_<name>.nc` — NetCDF with coordinates and all annual/monthly fields.
-- `pvm2_<name>_biome.tif` — GeoTIFF for regular latitude/longitude grids.
+- `pvm2_<name>_biome.tif` - GeoTIFF biome map.  Regular grids use an affine
+  transform; irregular grids such as T62 use per-cell GCPs stored in the
+  accompanying `.tif.aux.xml` sidecar (keep both files together).
 - `pvm2_<name>_legacy.bin` — optional 12-record bundle in the original
   `pvm5` order.
 
@@ -205,10 +207,12 @@ Class codes:
 
 The kappa implementation remaps 13 -> 12 and 20 -> 13, following `skill4.f`.
 
-The legacy latitude axis is a **T62 Gaussian grid**, not a regular one.
-A GeoTIFF with a single affine transform cannot represent Gaussian latitudes,
-so GeoTIFF export is skipped for that grid and the NetCDF output is the
-authoritative product.  Regular synthetic grids are exported normally.
+The legacy latitude axis is a **T62 Gaussian grid**, not a regular one.  A
+single affine transform cannot represent Gaussian latitudes, so this grid is
+written with one ground control point per cell.  GDAL stores those GCPs in a
+`.tif.aux.xml` sidecar, so the `.tif` and its sidecar must be kept together.
+The NetCDF output remains the authoritative, self-contained product.  Regular
+synthetic grids use a conventional north-up affine GeoTIFF.
 
 ## Validation
 

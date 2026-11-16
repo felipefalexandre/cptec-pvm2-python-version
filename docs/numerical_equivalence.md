@@ -162,9 +162,10 @@ legacy build with `ca=35.35 Pa` and fire on.
 ## 8. Limitations
 
 - No original model output exists, so level 5 is not attainable.
-- The reference latitude axis is a T62 Gaussian grid; GeoTIFF export with a
-  single affine transform is intentionally skipped.  NetCDF preserves the
-  exact coordinates.
+- The reference latitude axis is a T62 Gaussian grid; a single affine
+  transform cannot represent it.  The GeoTIFF writer uses per-cell GCPs in a
+  `.tif.aux.xml` sidecar instead.  NetCDF preserves the exact coordinates and
+  is the authoritative product.
 - The legacy binary leaves `seai` and `weti` undefined over ocean.  Python
   writes -999.99 there and comparisons are restricted to land.
 - The `ca` in the delivered source is hard-coded to 51.5375 Pa and labelled

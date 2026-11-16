@@ -112,6 +112,21 @@ def test_geotiff_regular_grid(tiny_results, tmp_path):
     assert path.exists() and path.stat().st_size > 0
 
 
+def test_geotiff_gaussian_grid_uses_gcps(tmp_path):
+    import rasterio
+
+    lat = np.array([-88.5, -60.2, 0.0, 60.7, 88.5])
+    lon = np.arange(0.0, 360.0, 90.0)
+    data = np.arange(20, dtype=np.int16).reshape(5, 4)
+    path = tmp_path / "gaussian.tif"
+    raster.write_geotiff(path, data, lat, lon)
+    with rasterio.open(path) as ds:
+        gcps, crs = ds.gcps
+        assert crs.to_epsg() == 4326
+        assert len(gcps) == lat.size * lon.size
+        assert np.array_equal(ds.read(1), data[::-1])
+
+
 @requires_legacy_data
 def test_original_experiment_matches_fortran(original_results, fortran_bpot_ca350):
     assert original_results["bpot"].shape == (96, 192)
