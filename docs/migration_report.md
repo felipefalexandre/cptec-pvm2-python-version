@@ -7,7 +7,8 @@
 | `src/pvm2/` | Python package |
 | `legacy/fortran/` | original Fortran sources, unmodified |
 | `legacy/data/` | input metadata and placement instructions; raw binaries are not redistributed |
-| `scripts/build_legacy.ps1` | reproducible legacy build (RECL adaptation only) |
+| `scripts/build_legacy.ps1` | reproducible legacy build (RECL adaptation and `-Co2`) |
+| `scripts/run_legacy.ps1` | runs the compiled Fortran model and writes its outputs |
 | `configs/` | legacy-binary and NetCDF input examples |
 | `experiments/original/` | reference experiment |
 | `tests/` | 46 tests and Fortran-generated fixtures |

@@ -4,7 +4,8 @@ Date: 2026-11-15
 Scope: complete inventory of the Fortran package delivered as
 `PVM2-20261115T130744Z-1-001`, its data, numerical content, build behaviour
 and reproduction status.  No numerical expression of the original was changed
-during the audit.
+during the audit; the build script only adapts RECL and sets the active `ca`
+assignment explicitly from `-Co2`.
 
 ## 1. Inventory
 
@@ -197,8 +198,9 @@ All model binaries are sequences of little-endian IEEE-754 float32 records.
 - The Fortran declarations are `(nx, ny)`, so a direct `reshape(ny, nx)` of
   the 1-D stream is correct; `reshape(12, nx, ny)` would transpose the map.
 - Original `recl=nx*ny` was word-based under Intel/g95.  gfortran interprets
-  `recl` in bytes, so the build replaces it with `recl=nx*ny*4` only.  No
-  numerical expression is modified.
+  `recl` in bytes, so the build replaces it with `recl=nx*ny*4`.  The build
+  also sets the active `ca=` assignment from `-Co2`; the default equals the
+  delivered 51.5375 Pa.
 - `env5.f` reads `pnew.bin`/`tnew.bin`; in the delivered package these are the
   same data as `prec.bin`/`temp.bin`.  The build script creates the aliases.
 - `pvm5.f` reads `unew_100.bin`, which is the same as `uwind.bin`.
@@ -227,8 +229,8 @@ audit build uses gfortran 16.2 (WinLibs POSIX UCRT) with:
 -std=legacy -O0 -ffp-contract=off -fno-fast-math
 ```
 
-The sources are copied to `build/<experiment>/code`, the RECL token is
-patched, and the two executables are built:
+The sources are copied to `build/<experiment>/code`, the RECL token and the
+active `ca` assignment are patched, and the two executables are built:
 
 ```
 gfortran ... env5.f wbm4.f carbon2.f -o pvm2.exe
@@ -267,7 +269,8 @@ lower than in the paper.  Candidate causes are listed in section 10.
 3. **Fixed grid dimensions.**  `nx` and `ny` are compile-time parameters in
    every routine.  Porting requires removing them.
 4. **Word-based RECL.**  Compiling the untouched source with gfortran produces
-   unreadable or truncated records.  Only the RECL unit is adapted.
+   unreadable or truncated records.  Only the RECL unit is adapted; `ca` is
+   set explicitly by `-Co2`.
 5. **Float32 arithmetic.**  `carbon1` computes a small root as the difference
    of large terms.  At unphysically high PAR the cancellation causes percent-
    level differences between single and double precision.  At the physical

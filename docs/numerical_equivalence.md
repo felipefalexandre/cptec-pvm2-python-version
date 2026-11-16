@@ -7,8 +7,8 @@ binary**; the only map (`Lapola_et_al_T062.bin`) is the observed reference map
 used by the kappa statistic.  Bit-level comparison with a published run is
 therefore impossible.  Equivalence was assessed in four steps:
 
-1. Compile the legacy source locally, changing only the direct-access RECL
-   unit required by gfortran.
+1. Compile the legacy source locally, adapting the direct-access RECL unit
+   required by gfortran and setting `ca` explicitly with `-Co2`.
 2. Run the legacy build and the Python implementation on exactly the same
    input binaries and CO2 value.
 3. Compare the biome map and every intermediate field cell by cell.
@@ -32,15 +32,17 @@ file and a known compiler/libm.
 ## 2. Legacy build
 
 `scripts/build_legacy.ps1` copies `env5.f`, `wbm4.f`, `carbon2.f`, `pvm5.f`,
-replaces `recl=nx*ny)` with `recl=nx*ny*4)`, and compiles with
+replaces `recl=nx*ny)` with `recl=nx*ny*4)`, sets the active `ca=` assignment
+from `-Co2`, and compiles with
 
 ```
 gfortran -std=legacy -O0 -ffp-contract=off -fno-fast-math
 ```
 
-No numerical statement, constant or loop bound was changed.  The experiment
-uses `ca=35.35 Pa`, fire on, exactly as the Python configuration
-`experiments/original/original.yaml`.
+The default `-Co2 51.5375` is the value hard-coded in the delivered source;
+the comparison below uses `-Co2 35.35`, matching the Python configuration
+`experiments/original/original.yaml`.  No other numerical statement, constant
+or loop bound is changed.
 
 ## 3. Field comparison
 
@@ -143,12 +145,15 @@ interpreter overhead over the 44 000 daily steps, not the grid size.
 
 ## 7. Reproduce the comparison
 
-```bash
-# 1. compile and run the legacy model
-powershell -ExecutionPolicy Bypass -File scripts/build_legacy.ps1
-# the script prints the build directory; run pvm2.exe from its code directory
-# with ../inputs and ../outputs in place (see docs/legacy_code_audit.md)
+```powershell
+# 1. compile and run the legacy model with ca=35.35 Pa
+powershell -ExecutionPolicy Bypass -File scripts/build_legacy.ps1 `
+  -Co2 35.35 -BuildDir build/ca350
+powershell -ExecutionPolicy Bypass -File scripts/run_legacy.ps1 `
+  -BuildDir build/ca350
+```
 
+```bash
 # 2. run Python
 pvm2 run --config experiments/original/original.yaml
 

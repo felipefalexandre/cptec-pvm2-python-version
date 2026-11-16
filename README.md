@@ -110,10 +110,24 @@ pvm2 compare-legacy  compare Python fields with legacy Fortran output
 pvm2 info            describe a NetCDF or configuration file
 ```
 
-Compare every annual, monthly and bundled field against the local Fortran
-build:
+### Compare with the Fortran version
+
+Build and run the legacy model with the same CO2 value as
+`experiments/original/original.yaml`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/build_legacy.ps1 `
+  -Co2 35.35 -BuildDir build/ca350
+powershell -ExecutionPolicy Bypass -File scripts/run_legacy.ps1 `
+  -BuildDir build/ca350
+```
+
+The second script runs `pvm2.exe` and `pvm5.exe` from `build/ca350/code` and
+writes the Fortran fields to `build/ca350/outputs`.  Then run Python and compare
+every annual, monthly and bundled field:
 
 ```bash
+pvm2 run --config experiments/original/original.yaml
 pvm2 compare-legacy \
   --fortran-dir build/ca350/outputs \
   --python outputs/original/pvm2_original.nc \
