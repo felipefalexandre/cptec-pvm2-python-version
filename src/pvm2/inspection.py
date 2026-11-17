@@ -238,7 +238,7 @@ def _time_from_file(path):
         return _time_summary(dataset)
 
 
-def _source_entries(input_cfg):
+def source_fingerprints(input_cfg):
     entries = []
     if input_cfg.climate:
         entries.append(("climate", input_cfg.climate))
@@ -309,7 +309,7 @@ def inspect_inputs(cfg):
     elif cfg.input.legacy:
         time = {"kind": "monthly_climatology", "size": 12}
 
-    sources = _source_entries(cfg.input)
+    sources = source_fingerprints(cfg.input)
     for source in sources:
         if "error" in source:
             issues.append(

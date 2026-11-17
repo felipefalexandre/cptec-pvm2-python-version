@@ -6,11 +6,12 @@ import argparse
 import json
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
 
-from . import __version__, config, diagnostics, inspection, prepare
+from . import __version__, config, diagnostics, inspection, prepare, provenance
 from .core import model
 from .io import legacy_binary, netcdf, raster, vector
 from .validation import compare as compare_module
@@ -73,6 +74,18 @@ def _config_from_args(args):
         cfg.model.max_equilibrium_years = args.max_years
     if getattr(args, "no_geotiff", False):
         cfg.output.geotiff = False
+    if getattr(args, "run_dir", False):
+        cfg.output.run_directory = True
+    if getattr(args, "run_id", None):
+        run_id = args.run_id
+        candidate = Path(run_id)
+        if (
+            run_id in (".", "..")
+            or candidate.is_absolute()
+            or candidate.name != run_id
+        ):
+            raise ValueError("--run-id must be a single directory name")
+        cfg.output.run_id = run_id
     return cfg
 
 
@@ -94,9 +107,21 @@ def _legacy_bundle_fields(results):
 
 
 def _output_paths(cfg):
-    directory = Path(cfg.output.directory)
+    base = Path(cfg.output.directory)
+    run_id = cfg.output.run_id
+    if run_id is None and cfg.output.run_directory:
+        run_id = datetime.now(timezone.utc).strftime("run-%Y%m%dT%H%M%SZ")
+    directory = base / run_id if run_id else base
+    if run_id and cfg.output.run_id is None:
+        candidate = directory
+        counter = 1
+        while candidate.exists():
+            candidate = base / f"{run_id}-{counter}"
+            counter += 1
+        directory = candidate
+        run_id = directory.name
     directory.mkdir(parents=True, exist_ok=True)
-    return directory, directory / f"{cfg.output.name}.nc"
+    return directory, directory / f"{cfg.output.name}.nc", run_id
 
 
 def _run_and_write(cfg):
@@ -117,7 +142,7 @@ def _run_and_write(cfg):
     elapsed = time.perf_counter() - started
     _log(f"model finished in {elapsed:.2f} s; equilibrium years = {results['equilibrium_years']}")
 
-    directory, nc_path = _output_paths(cfg)
+    directory, nc_path, run_id = _output_paths(cfg)
     lat = data["lat"]
     lon = data["lon"]
     run_attrs = {
@@ -126,35 +151,40 @@ def _run_and_write(cfg):
         "equilibrium_years": results["equilibrium_years"],
         "runtime_seconds": f"{elapsed:.3f}",
     }
+    artifacts = {}
     if cfg.output.netcdf:
         netcdf.write_outputs(nc_path, results, lat, lon, run_attrs)
+        artifacts["netcdf"] = provenance.file_fingerprint(nc_path)
         _log(f"wrote {nc_path}")
     if cfg.output.geotiff:
         tif = directory / f"{cfg.output.name}_biome.tif"
         try:
             raster.write_geotiff(tif, results["bpot"], lat, lon)
+            artifacts["geotiff"] = provenance.file_fingerprint(tif)
             _log(f"wrote {tif}")
         except ValueError as exc:
             _log(f"GeoTIFF skipped: {exc}")
     if cfg.output.write_legacy_binary:
         bundle = directory / f"{cfg.output.name}_legacy.bin"
         legacy_binary.write_biome_bundle(bundle, _legacy_bundle_fields(results))
+        artifacts["legacy_binary"] = provenance.file_fingerprint(bundle)
         _log(f"wrote {bundle}")
 
-    manifest = {
-        "version": __version__,
-        "grid": [ny, nx],
-        "co2_pa": cfg.model.co2_pa,
-        "fire": cfg.model.fire,
-        "equilibrium_years": results["equilibrium_years"],
-        "runtime_seconds": elapsed,
-        "outputs": str(nc_path),
-        "environment": report.environment_info(),
-        "input_attrs": data.get("attrs", {}),
-    }
-    (directory / "run_manifest.json").write_text(
-        json.dumps(manifest, indent=2, default=str), encoding="utf-8"
+    manifest = provenance.build_manifest(
+        cfg,
+        data=data,
+        results=results,
+        elapsed=elapsed,
+        directory=directory,
+        run_id=run_id,
+        artifacts=artifacts,
+        command=sys.argv,
     )
+    manifest_path = provenance.write_manifest(
+        directory / "run_manifest.json",
+        manifest,
+    )
+    _log(f"wrote {manifest_path}")
     return results, data, manifest
 
 
@@ -195,12 +225,15 @@ def cmd_reproduce(args):
     )
     if cfg.output.geotiff:
         reference_tif = (
-            Path(cfg.output.directory)
+            Path(manifest["directory"])
             / f"{cfg.output.name}_reference_biome.tif"
         )
         try:
             raster.write_geotiff(
                 reference_tif, observed, data["lat"], data["lon"]
+            )
+            manifest["artifacts"]["reference_geotiff"] = (
+                provenance.file_fingerprint(reference_tif)
             )
             _log(f"wrote {reference_tif}")
         except ValueError as exc:
@@ -211,6 +244,11 @@ def cmd_reproduce(args):
         observed,
         results["bpot"],
         extra={"manifest": manifest, "reference": cfg.output.reference},
+    )
+    manifest["artifacts"]["validation_report"] = provenance.file_fingerprint(path)
+    provenance.write_manifest(
+        Path(manifest["directory"]) / "run_manifest.json",
+        manifest,
     )
     _log(f"wrote {path}")
     if args.min_kappa is not None and metrics["kappa"] < args.min_kappa:
@@ -445,6 +483,18 @@ def _add_set(parser):
     )
 
 
+def _add_run_options(parser):
+    parser.add_argument(
+        "--run-dir",
+        action="store_true",
+        help="write outputs into a timestamped run subdirectory",
+    )
+    parser.add_argument(
+        "--run-id",
+        help="write outputs into a named run subdirectory",
+    )
+
+
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="pvm2",
@@ -478,6 +528,7 @@ def build_parser():
     run.add_argument("--max-years", type=int, dest="max_years")
     run.add_argument("--no-geotiff", action="store_true")
     _add_set(run)
+    _add_run_options(run)
     run.set_defaults(func=cmd_run)
 
     rep = sub.add_parser("reproduce", help="run a reference experiment and validate")
@@ -494,6 +545,7 @@ def build_parser():
         help="fail if the kappa against the reference map is below this value",
     )
     _add_set(rep)
+    _add_run_options(rep)
     rep.set_defaults(func=cmd_reproduce)
 
     prep = sub.add_parser(

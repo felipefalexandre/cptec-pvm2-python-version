@@ -82,6 +82,20 @@ model:
         config.load_config(path)
 
 
+def test_run_id_must_be_a_single_directory_name(tmp_path):
+    path = _write(
+        tmp_path / "bad.yaml",
+        """
+input:
+  climate: input.nc
+output:
+  run_id: ../outside
+""",
+    )
+    with pytest.raises(config.ConfigError, match="output.run_id"):
+        config.load_config(path)
+
+
 def test_top_level_must_be_mapping(tmp_path):
     path = _write(tmp_path / "bad.yaml", "- one\n- two\n")
     with pytest.raises(config.ConfigError, match="top-level"):

@@ -50,6 +50,8 @@ OUTPUT_KEYS = {
     "geotiff",
     "write_legacy_binary",
     "reference",
+    "run_directory",
+    "run_id",
 }
 SOURCE_KEYS = {
     "path",
@@ -100,6 +102,8 @@ class OutputConfig:
     geotiff: bool = True
     write_legacy_binary: bool = False
     reference: str | None = None
+    run_directory: bool = False
+    run_id: str | None = None
 
 
 @dataclass
@@ -184,10 +188,12 @@ def _as_str(value, path):
     return value.strip()
 
 
-def _as_optional_str(value, path):
-    if value is None:
-        return None
-    return _as_str(value, path)
+def _as_run_id(value, path):
+    text = _as_str(value, path)
+    candidate = Path(text)
+    if text in (".", "..") or candidate.is_absolute() or candidate.name != text:
+        _fail(path, "must be a single directory name")
+    return text
 
 
 def _as_path(value, path, base_dir):
@@ -408,6 +414,7 @@ def from_dict(
         warnings.append("output.dir is an alias for output.directory")
     directory = out.get("directory", out.get("dir", "outputs"))
     reference = out.get("reference")
+    run_id = out.get("run_id")
     out_cfg = OutputConfig(
         directory=_as_path(directory, "output.directory", path_base),
         name=_as_str(out.get("name", "pvm2"), "output.name"),
@@ -422,6 +429,11 @@ def from_dict(
             if reference
             else None
         ),
+        run_directory=_as_bool(
+            out.get("run_directory", False),
+            "output.run_directory",
+        ),
+        run_id=_as_run_id(run_id, "output.run_id") if run_id is not None else None,
     )
 
     return RunConfig(

@@ -22,7 +22,7 @@ environmental fields to float32 precision.
 | Kappa vs observed reference map | 0.525 (paper: 0.54) |
 | Legacy runtime (192x96 grid) | 3.4 s |
 | Python runtime (192x96 grid) | 18.4 s |
-| Tests | 91 collected |
+| Tests | 97 collected |
 
 Details and caveats are in `docs/numerical_equivalence.md`.
 
@@ -133,8 +133,22 @@ runs the reference experiment and checks kappa; add `--json` for automation.
 outputs/original/pvm2_original_biome.tif              simulated potential vegetation
 outputs/original/pvm2_original_reference_biome.tif    observed natural vegetation
 outputs/original/pvm2_original.nc                     full model output
+outputs/original/run_manifest.json                    provenance and artifact hashes
 reports/scientific_validation.html                    kappa and map comparison
 ```
+
+Use `--run-dir` to put each run in a timestamped subdirectory, or `--run-id`
+for a named subdirectory:
+
+```bash
+pvm2 run --config experiments/original/original.yaml --run-dir
+pvm2 reproduce --config experiments/original/original.yaml --run-id case-2026
+```
+
+The manifest records the command, normalized configuration, git commit and
+dirty state, Python/package versions, input source SHA-256 hashes, output
+artifact hashes and sizes, grid, model settings and runtime metadata.  Without
+`--run-dir` or `--run-id`, existing output paths are unchanged.
 
 To compare with Figure 1b of Lapola et al. (2009) on page 5, open both
 GeoTIFFs in QGIS and load the style
