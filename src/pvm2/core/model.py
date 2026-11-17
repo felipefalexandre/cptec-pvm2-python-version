@@ -73,7 +73,13 @@ def _prepare(data):
     return fields
 
 
-def run(data, co2_pa=35.35, fire=True, max_equilibrium_years=20000):
+def run(
+    data,
+    co2_pa=35.35,
+    fire=True,
+    max_equilibrium_years=20000,
+    progress=None,
+):
     """Execute CPTEC-PVM2 and return all environmental and biome fields."""
     fields = _prepare(data)
     results = water_balance.potential_vegetation(
@@ -85,6 +91,8 @@ def run(data, co2_pa=35.35, fire=True, max_equilibrium_years=20000):
         float(co2_pa),
         fields["uwind"],
         fire=fire,
+        max_years=max_equilibrium_years,
+        progress=progress,
     )
     results["co2_pa"] = float(co2_pa)
     results["fire"] = bool(fire)

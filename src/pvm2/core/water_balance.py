@@ -262,11 +262,22 @@ def _find_transition_month(wsoil2):
     return chosen.reshape(ny, nx)
 
 
-def environmental_variables(prec, temp, lsmk, p0, ca, par, max_years=20000):
+def environmental_variables(
+    prec,
+    temp,
+    lsmk,
+    p0,
+    ca,
+    par,
+    max_years=20000,
+    progress=None,
+):
     """Run the full water balance and derive the environmental variables.
 
     Parameters are arrays shaped (12, ny, nx) except ``lsmk``, ``p0`` and
     ``ca``.  Returns the nine variables written by env5.f plus monthly fields.
+    ``progress`` is an optional callable receiving one event dictionary per
+    integrated month, plus a final event with ``done=True``.
     """
     prec = np.asarray(prec)
     temp = np.asarray(temp)
@@ -314,6 +325,18 @@ def environmental_variables(prec, temp, lsmk, p0, ca, par, max_years=20000):
     wg0 = np.full((12, ncell), -1.0)
 
     active = np.flatnonzero(land.reshape(ncell))
+    land_cells = int(active.size)
+    if progress is not None:
+        progress(
+            {
+                "phase": "equilibrium",
+                "year": 0,
+                "month": 0,
+                "active_cells": land_cells,
+                "land_cells": land_cells,
+                "done": False,
+            }
+        )
     year = 0
     while active.size:
         year += 1
@@ -344,6 +367,17 @@ def environmental_variables(prec, temp, lsmk, p0, ca, par, max_years=20000):
             w[active] = out["w"]
             g[active] = out["g"]
             s[active] = out["s"]
+            if progress is not None:
+                progress(
+                    {
+                        "phase": "equilibrium",
+                        "year": year,
+                        "month": k + 1,
+                        "active_cells": int(active.size),
+                        "land_cells": land_cells,
+                        "done": False,
+                    }
+                )
 
         wsoil_a = fields_f["wsoil"][:, active]
         gsoil_a = fields_f["gsoil"][:, active]
@@ -356,6 +390,17 @@ def environmental_variables(prec, temp, lsmk, p0, ca, par, max_years=20000):
                 wg0[:, active] = wsoil_a[:, ~converged] + gsoil_a[:, ~converged]
         else:
             wg0[:, active] = wsoil_a + gsoil_a
+    if progress is not None:
+        progress(
+            {
+                "phase": "equilibrium",
+                "year": year,
+                "month": 12,
+                "active_cells": 0,
+                "land_cells": land_cells,
+                "done": True,
+            }
+        )
     tmin = np.min(temp, axis=0)
     npp = fields["npp"]
     meanpp = np.sum(npp / 12.0, axis=0)
@@ -548,11 +593,31 @@ def transition_and_wind(wsoil2, uwind, land):
     return d2wm, ud2w
 
 
-def potential_vegetation(prec, temp, ipar_wm2, lsmk, p0, ca, uwind, fire=True):
+def potential_vegetation(
+    prec,
+    temp,
+    ipar_wm2,
+    lsmk,
+    p0,
+    ca,
+    uwind,
+    fire=True,
+    max_years=20000,
+    progress=None,
+):
     """End-to-end CPTEC-PVM2: climate -> environmental fields -> biomes."""
     par = np.asarray(ipar_wm2) / constants.IPAR_TO_EINSTEIN
     prec = np.maximum(np.asarray(prec), 0.0)
-    env = environmental_variables(prec, temp, lsmk, p0, ca, par)
+    env = environmental_variables(
+        prec,
+        temp,
+        lsmk,
+        p0,
+        ca,
+        par,
+        max_years=max_years,
+        progress=progress,
+    )
     avgpar = np.mean(ipar_wm2, axis=0)
     bpot, ratio, d2wm, ud2w = classify(
         p0,

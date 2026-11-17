@@ -144,3 +144,26 @@ def test_original_kappa_reference(original_results):
     modelled = original_results["bpot"].astype(int)
     report = kappa.kappa(observed, modelled)
     assert report["kappa"] == pytest.approx(0.5254, abs=0.002)
+
+def test_progress_callback_reports_equilibrium_years():
+    data = synthetic_inputs(4, 5)
+    events = []
+    results = model.run(
+        data,
+        co2_pa=35.35,
+        fire=False,
+        progress=events.append,
+    )
+    assert results["bpot"].shape == (4, 5)
+    assert events[0]["phase"] == "equilibrium"
+    assert events[0]["year"] == 0
+    assert events[0]["active_cells"] == events[0]["land_cells"]
+    assert events[-1]["done"] is True
+    assert events[-1]["active_cells"] == 0
+    assert events[-1]["year"] == results["equilibrium_years"]
+    assert any(event["month"] == 12 for event in events)
+
+def test_max_equilibrium_years_is_forwarded():
+    data = synthetic_inputs(4, 5)
+    with pytest.raises(RuntimeError, match="after 2 years"):
+        model.run(data, fire=False, max_equilibrium_years=2)

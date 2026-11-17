@@ -22,6 +22,37 @@ def _log(message):
     print(f"[pvm2] {message}", flush=True)
 
 
+def _progress_reporter(started, interval=2.0):
+    last = [started]
+
+    def report(event):
+        if event.get("phase") != "equilibrium":
+            return
+        land = int(event.get("land_cells", 0))
+        active = int(event.get("active_cells", 0))
+        if event.get("done"):
+            _log(
+                f"equilibrium reached after {event['year']} year(s); "
+                f"converged {land - active}/{land} land cells"
+            )
+            return
+        if event.get("year", 0) == 0:
+            return
+        now = time.perf_counter()
+        if now - last[0] < interval:
+            return
+        last[0] = now
+        converged = land - active
+        percent = 100.0 * converged / land if land else 100.0
+        _log(
+            f"equilibrium year {event['year']}, month {event['month']:02d}: "
+            f"{converged}/{land} cells converged ({percent:.1f}%), "
+            f"{now - started:.1f} s"
+        )
+
+    return report
+
+
 def _config_from_args(args):
     if getattr(args, "config", None):
         cfg = config.load_config(args.config)
@@ -69,13 +100,16 @@ def _run_and_write(cfg):
     _log("loading inputs")
     data = config.load_inputs(cfg.input)
     ny, nx = data["landmask"].shape
+    land_cells = int(np.count_nonzero(data["landmask"]))
     _log(f"grid {ny} x {nx}; CO2 = {cfg.model.co2_pa} Pa; fire = {cfg.model.fire}")
+    _log(f"model started with {land_cells} land cells")
     started = time.perf_counter()
     results = model.run(
         data,
         co2_pa=cfg.model.co2_pa,
         fire=cfg.model.fire,
         max_equilibrium_years=cfg.model.max_equilibrium_years,
+        progress=_progress_reporter(started),
     )
     elapsed = time.perf_counter() - started
     _log(f"model finished in {elapsed:.2f} s; equilibrium years = {results['equilibrium_years']}")
