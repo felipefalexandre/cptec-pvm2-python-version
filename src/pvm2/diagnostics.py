@@ -226,6 +226,7 @@ def run_reference(root, min_kappa=None):
     path = root / "experiments" / "original" / "original.yaml"
     try:
         cfg = config.load_config(path)
+        config.resolve_paths(cfg, root)
         data = config.load_inputs(cfg.input)
         results = model.run(
             data,

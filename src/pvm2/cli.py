@@ -54,8 +54,11 @@ def _progress_reporter(started, interval=2.0):
 
 
 def _config_from_args(args):
+    overrides = getattr(args, "set", None)
     if getattr(args, "config", None):
-        cfg = config.load_config(args.config)
+        cfg = config.load_config(args.config, overrides=overrides)
+    elif overrides:
+        raise ValueError("--set requires --config")
     else:
         cfg = config.RunConfig()
     if getattr(args, "input", None):
@@ -221,7 +224,7 @@ def cmd_reproduce(args):
 
 
 def cmd_convert_legacy(args):
-    cfg = config.load_config(args.config)
+    cfg = config.load_config(args.config, overrides=args.set)
     if not cfg.input.shape:
         raise ValueError("input.shape is required")
     data = config.load_legacy_inputs(cfg.input)
@@ -234,7 +237,7 @@ def cmd_convert_legacy(args):
 
 
 def cmd_prepare(args):
-    cfg = config.load_config(args.config)
+    cfg = config.load_config(args.config, overrides=args.set)
     plan = prepare.make_plan(
         cfg.input,
         target=args.target,
@@ -258,12 +261,16 @@ def cmd_prepare(args):
         return 0
 
     if plan.selected is None:
-        if args.yes or not prepare.interactive_available():
+        if args.yes:
             plan.selected = plan.recommended
             _log(
                 f"using recommended target grid: "
                 f"{plan.selected.resolution:g} deg "
                 f"({plan.selected.description})"
+            )
+        elif not prepare.interactive_available():
+            raise ValueError(
+                "no target selected; pass --target or --yes for non-interactive use"
             )
         else:
             plan.selected = prepare.select_target(plan, output_fn=_log)
@@ -318,16 +325,55 @@ def cmd_compare_legacy(args):
     return 1
 
 
+def cmd_config_check(args):
+    cfg = config.load_config(args.config, overrides=args.set)
+    report = {
+        "ok": True,
+        "source": cfg.source,
+        "relative_to": cfg.relative_to,
+        "warnings": cfg.warnings,
+        "config": config.as_dict(cfg),
+    }
+    if args.json:
+        print(json.dumps(report, indent=2, default=str))
+    else:
+        _log(f"configuration is valid: {args.config}")
+        for warning in cfg.warnings:
+            _log(f"warning: {warning}")
+    return 0
+
+
+def cmd_config_show(args):
+    cfg = config.load_config(args.config, overrides=args.set)
+    if args.resolved:
+        config.resolve_paths(cfg, Path.cwd())
+    if args.json:
+        print(json.dumps(config.as_dict(cfg), indent=2, default=str))
+    else:
+        print(config.as_yaml(cfg), end="")
+    return 0
+
+
 def cmd_info(args):
     if args.input:
         summary = netcdf.summarize(args.input)
         print(json.dumps(summary, indent=2))
     elif args.config:
         cfg = config.load_config(args.config)
-        print(json.dumps({"config": args.config, "input": cfg.input.__dict__}, indent=2, default=str))
+        print(json.dumps(config.as_dict(cfg), indent=2, default=str))
     else:
         raise SystemExit("provide --input or --config")
     return 0
+
+
+def _add_set(parser):
+    parser.add_argument(
+        "--set",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        help="override a configuration key (repeatable)",
+    )
 
 
 def build_parser():
@@ -362,6 +408,7 @@ def build_parser():
     run.add_argument("--no-fire", dest="fire", action="store_false")
     run.add_argument("--max-years", type=int, dest="max_years")
     run.add_argument("--no-geotiff", action="store_true")
+    _add_set(run)
     run.set_defaults(func=cmd_run)
 
     rep = sub.add_parser("reproduce", help="run a reference experiment and validate")
@@ -377,6 +424,7 @@ def build_parser():
         type=float,
         help="fail if the kappa against the reference map is below this value",
     )
+    _add_set(rep)
     rep.set_defaults(func=cmd_reproduce)
 
     prep = sub.add_parser(
@@ -400,16 +448,37 @@ def build_parser():
         action="store_true",
         help="use the recommended target without an interactive prompt",
     )
+    _add_set(prep)
     prep.set_defaults(func=cmd_prepare)
 
     conv = sub.add_parser("convert-legacy", help="convert legacy binaries to NetCDF")
     conv.add_argument("--config", required=True)
+    _add_set(conv)
     conv.set_defaults(func=cmd_convert_legacy)
 
     val = sub.add_parser("validate", help="validate inputs")
     val.add_argument("--input")
     val.add_argument("--config")
+    _add_set(val)
     val.set_defaults(func=cmd_validate)
+
+    cfg_parser = sub.add_parser("config", help="check or show configuration files")
+    cfg_sub = cfg_parser.add_subparsers(dest="config_command", required=True)
+    cfg_check = cfg_sub.add_parser("check", help="validate a configuration file")
+    cfg_check.add_argument("--config", required=True)
+    cfg_check.add_argument("--json", action="store_true")
+    _add_set(cfg_check)
+    cfg_check.set_defaults(func=cmd_config_check)
+    cfg_show = cfg_sub.add_parser("show", help="print a normalized configuration")
+    cfg_show.add_argument("--config", required=True)
+    cfg_show.add_argument("--json", action="store_true")
+    cfg_show.add_argument(
+        "--resolved",
+        action="store_true",
+        help="resolve relative paths against the current directory",
+    )
+    _add_set(cfg_show)
+    cfg_show.set_defaults(func=cmd_config_show)
 
     info = sub.add_parser("info", help="describe a NetCDF or configuration file")
     info.add_argument("--input")

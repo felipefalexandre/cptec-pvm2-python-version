@@ -22,7 +22,7 @@ environmental fields to float32 precision.
 | Kappa vs observed reference map | 0.525 (paper: 0.54) |
 | Legacy runtime (192x96 grid) | 3.4 s |
 | Python runtime (192x96 grid) | 18.4 s |
-| Tests | 75 collected |
+| Tests | 87 collected |
 
 Details and caveats are in `docs/numerical_equivalence.md`.
 
@@ -235,6 +235,22 @@ input:
     pressure: hPa
     uwind: m s-1
 ```
+
+Configuration files are validated strictly: unknown keys, wrong types and
+invalid choices are rejected before any data is loaded.  Check and inspect a
+file without running the model:
+
+```bash
+pvm2 config check --config configs/heterogeneous.yaml
+pvm2 config show --config configs/heterogeneous.yaml --resolved
+```
+
+Use `--set key=value` to override a field without editing the file, for example
+`pvm2 run --config experiments/original/original.yaml --set model.fire=false`.
+By default paths are relative to the current directory.  Set
+`paths_relative_to: config` to resolve them relative to the YAML file instead.
+In non-interactive use, `pvm2 prepare` requires an explicit `--target` or
+`--yes`.
 
 Supported input units are converted only when unambiguous:
 
