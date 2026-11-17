@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import __version__, config, diagnostics, prepare
+from . import __version__, config, diagnostics, inspection, prepare
 from .core import model
 from .io import legacy_binary, netcdf, raster, vector
 from .validation import compare as compare_module
@@ -289,15 +289,84 @@ def cmd_prepare(args):
     return 0
 
 
+def _write_json_report(path, payload):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+    _log(f"wrote {path}")
+
+
 def cmd_validate(args):
     cfg = _config_from_args(args)
-    data = config.load_inputs(cfg.input)
-    model._prepare(data)
-    _log(f"grid {data['landmask'].shape[0]} x {data['landmask'].shape[1]}")
-    for key in ("precipitation", "temperature", "par", "pressure", "landmask", "uwind"):
-        arr = np.asarray(data[key])
-        _log(f"{key:14s} min={np.nanmin(arr):12.4f} max={np.nanmax(arr):12.4f} shape={arr.shape}")
-    _log("inputs are valid")
+    try:
+        report = inspection.inspect_inputs(cfg)
+    except (ValueError, KeyError, FileNotFoundError) as exc:
+        report = {
+            "ok": False,
+            "config_file": cfg.source,
+            "issues": [str(exc)],
+            "fields": {},
+        }
+    if args.report:
+        _write_json_report(args.report, report)
+    if args.json:
+        print(json.dumps(report, indent=2, default=str))
+    else:
+        for issue in report["issues"]:
+            _log(f"error: {issue}")
+        for key, item in report.get("fields", {}).items():
+            if item.get("min") is None:
+                _log(f"{key:14s} no finite values shape={item.get('shape')}")
+            else:
+                _log(
+                    f"{key:14s} min={item['min']:12.4f} "
+                    f"max={item['max']:12.4f} shape={item.get('shape')} "
+                    f"missing_land={item['missing']['over_land']}"
+                )
+        _log("inputs are valid" if report["ok"] else "input validation failed")
+    return 0 if report["ok"] else 1
+
+
+def cmd_inspect(args):
+    if args.input:
+        report = inspection.inspect_netcdf(args.input)
+    else:
+        cfg = config.load_config(args.config, overrides=args.set)
+        report = inspection.inspect_inputs(cfg)
+    if args.json:
+        print(json.dumps(report, indent=2, default=str))
+        return 0
+    if args.input:
+        _log(f"{report['path']}  sha256={report['sha256']}")
+        for name, item in report["variables"].items():
+            stats = item["stats"]
+            units = item["attrs"].get("units") or ""
+            _log(
+                f"{name:14s} dims={','.join(item['dims'])} "
+                f"shape={item['shape']} units={units} "
+                f"range=[{stats['min']}, {stats['max']}]"
+            )
+        if report["time"]:
+            time = report["time"]
+            _log(
+                f"time: {time['size']} steps, units={time.get('units')}, "
+                f"calendar={time.get('calendar')}"
+            )
+        for axis, item in report["domain"].items():
+            _log(
+                f"{axis}: {item['size']} points, "
+                f"{item['min']}..{item['max']}, spacing={item['spacing']}"
+            )
+    else:
+        _log(f"{report['config_file']}  sha256={report['config_sha256']}")
+        for issue in report["issues"]:
+            _log(f"error: {issue}")
+        for key, item in report["fields"].items():
+            _log(
+                f"{key:14s} min={item['min']} max={item['max']} "
+                f"missing_land={item['missing']['over_land']}"
+            )
+        _log("inputs are valid" if report["ok"] else "input validation failed")
     return 0
 
 
@@ -459,8 +528,21 @@ def build_parser():
     val = sub.add_parser("validate", help="validate inputs")
     val.add_argument("--input")
     val.add_argument("--config")
+    val.add_argument("--json", action="store_true", help="print a JSON report")
+    val.add_argument("--report", help="write the JSON report to this path")
     _add_set(val)
     val.set_defaults(func=cmd_validate)
+
+    inspect = sub.add_parser(
+        "inspect",
+        help="inspect a NetCDF file or a prepared input configuration",
+    )
+    source = inspect.add_mutually_exclusive_group(required=True)
+    source.add_argument("--input", help="NetCDF file")
+    source.add_argument("--config", help="YAML configuration file")
+    inspect.add_argument("--json", action="store_true", help="print a JSON report")
+    _add_set(inspect)
+    inspect.set_defaults(func=cmd_inspect)
 
     cfg_parser = sub.add_parser("config", help="check or show configuration files")
     cfg_sub = cfg_parser.add_subparsers(dest="config_command", required=True)

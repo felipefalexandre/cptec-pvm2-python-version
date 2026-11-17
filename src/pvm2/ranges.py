@@ -92,8 +92,8 @@ def check_field(key, values, context="input"):
         raise ValueError(issue)
 
 
-def check_inputs(data, context="input"):
-    """Validate all model inputs, reporting every problem at once."""
+def collect_issues(data, context="input"):
+    """Return every plausible-range problem without raising."""
     land = np.asarray(data.get("landmask", []))
     land = land > 0.5 if land.size else None
     issues = []
@@ -104,6 +104,12 @@ def check_inputs(data, context="input"):
         issue = _issue(key, data[key], context, mask)
         if issue:
             issues.append(issue)
+    return issues
+
+
+def check_inputs(data, context="input"):
+    """Validate all model inputs, reporting every problem at once."""
+    issues = collect_issues(data, context)
     if issues:
         raise ValueError(
             "input validation failed:\n  " + "\n  ".join(issues)

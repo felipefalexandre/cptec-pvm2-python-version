@@ -22,7 +22,7 @@ environmental fields to float32 precision.
 | Kappa vs observed reference map | 0.525 (paper: 0.54) |
 | Legacy runtime (192x96 grid) | 3.4 s |
 | Python runtime (192x96 grid) | 18.4 s |
-| Tests | 87 collected |
+| Tests | 91 collected |
 
 Details and caveats are in `docs/numerical_equivalence.md`.
 
@@ -152,9 +152,25 @@ pvm2 reproduce       run the configured reference experiment and validate
 pvm2 prepare         resample heterogeneous inputs onto a common lsmk grid
 pvm2 convert-legacy  convert legacy binaries to consolidated NetCDF
 pvm2 validate        check dimensions, ranges and land-mask consistency
+pvm2 inspect         report metadata, domain, time, units and SHA-256
 pvm2 compare-legacy  compare Python fields with legacy Fortran output
 pvm2 info            describe a NetCDF or configuration file
+pvm2 config check    validate a YAML configuration
+pvm2 config show     print a normalized YAML configuration
 ```
+
+`validate` and `inspect` accept `--json`; `validate --report` also writes the
+report to a file.  For example:
+
+```bash
+pvm2 validate --config experiments/original/original.yaml \
+  --json --report reports/input_validation.json
+pvm2 inspect --input outputs/pvm2_inputs.nc --json
+```
+
+The report includes per-variable units, ranges, missing values over land,
+grid spacing, time/calendar metadata and SHA-256 hashes of the configuration
+and source files.
 
 ### Compare with the Fortran version
 
