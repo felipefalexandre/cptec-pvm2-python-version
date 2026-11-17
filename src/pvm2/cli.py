@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import __version__, config, prepare
+from . import __version__, config, diagnostics, prepare
 from .core import model
 from .io import legacy_binary, netcdf, raster, vector
 from .validation import compare as compare_module
@@ -153,6 +153,21 @@ def _run_and_write(cfg):
         json.dumps(manifest, indent=2, default=str), encoding="utf-8"
     )
     return results, data, manifest
+
+
+def cmd_doctor(args):
+    report = diagnostics.doctor(
+        root=args.root,
+        full=args.full,
+        min_kappa=args.min_kappa,
+    )
+    if args.json:
+        print(diagnostics.json_report(report))
+    else:
+        for line in diagnostics.format_report(report).splitlines():
+            _log(line)
+        _log("installation OK" if report["ok"] else "installation has failures")
+    return 0 if report["ok"] else 1
 
 
 def cmd_run(args):
@@ -322,6 +337,21 @@ def build_parser():
     )
     parser.add_argument("--version", action="version", version=__version__)
     sub = parser.add_subparsers(dest="command", required=True)
+
+    doc = sub.add_parser(
+        "doctor",
+        help="check the installation, data and reference experiment",
+    )
+    doc.add_argument("--root", help="repository root containing legacy/data")
+    doc.add_argument("--full", action="store_true", help="also run the reference experiment")
+    doc.add_argument(
+        "--min-kappa",
+        type=float,
+        default=0.50,
+        help="minimum kappa required by --full (default: 0.50)",
+    )
+    doc.add_argument("--json", action="store_true", help="print a JSON report")
+    doc.set_defaults(func=cmd_doctor)
 
     run = sub.add_parser("run", help="run PVM2")
     run.add_argument("--input", help="consolidated NetCDF climate file")

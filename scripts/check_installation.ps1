@@ -11,6 +11,10 @@ if (-not (Test-Path -LiteralPath $python)) { $python = "python" }
 
 Push-Location $Root
 try {
+    Write-Host "== Installation diagnostics =="
+    & $python -m pvm2.cli doctor --root $Root --min-kappa $MinKappa
+    if ($LASTEXITCODE -ne 0) { throw "installation diagnostics failed" }
+
     Write-Host "== Python tests =="
     & $python -m pytest -q
     if ($LASTEXITCODE -ne 0) { throw "pytest failed" }

@@ -12,7 +12,7 @@
 | `scripts/check_installation.ps1` | runs tests, validates inputs and checks the reference kappa/figure |
 | `configs/` | legacy-binary, NetCDF and heterogeneous-source examples |
 | `experiments/original/` | reference experiment |
-| `tests/` | 72 tests and Fortran-generated fixtures |
+| `tests/` | 75 tests and Fortran-generated fixtures |
 | `docs/` | audit, methodology, equivalence, reference-article check, this report |
 
 The default inputs and the observed reference map are included so a fresh
@@ -113,6 +113,8 @@ No equation, threshold or parameter value was changed.
 
 `pvm2` is installed as a console script.  Commands:
 
+- `doctor` — checks dependencies, data checksums, presets and optionally
+  reproduces the reference experiment.
 - `run` — from YAML or NetCDF; overrides CO2, fire and maximum years, and
   logs throttled equilibrium progress for long fine-grid runs.
 - `reproduce` — runs the configured experiment and writes the validation
@@ -129,7 +131,7 @@ No equation, threshold or parameter value was changed.
 
 ## 8. Testing
 
-`pytest` runs 72 tests in about 45 seconds:
+`pytest` runs 75 tests in about 45 seconds:
 
 - scalar `carbon1`/`carbon2` against double-precision Fortran;
 - every biome rule, the fire switch and the transition-month search;

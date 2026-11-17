@@ -22,7 +22,7 @@ environmental fields to float32 precision.
 | Kappa vs observed reference map | 0.525 (paper: 0.54) |
 | Legacy runtime (192x96 grid) | 3.4 s |
 | Python runtime (192x96 grid) | 18.4 s |
-| Tests | 72 collected |
+| Tests | 75 collected |
 
 Details and caveats are in `docs/numerical_equivalence.md`.
 
@@ -111,16 +111,21 @@ Run the automated check before starting new experiments:
 powershell -ExecutionPolicy Bypass -File scripts/check_installation.ps1
 ```
 
-The script runs the test suite, validates the bundled inputs, runs the
-reference experiment with `ca = 35.35 Pa` and fire on, and requires
-`kappa >= 0.50` against the observed natural-vegetation map.  The expected
-value is `kappa = 0.525` (`agreement = 89.72%`).  The same steps manually:
+The script runs the installation diagnostics, the test suite, validates the
+bundled inputs, runs the reference experiment with `ca = 35.35 Pa` and fire on,
+and requires `kappa >= 0.50` against the observed natural-vegetation map.  The
+expected value is `kappa = 0.525` (`agreement = 89.72%`).  The same steps
+manually:
 
 ```bash
+pvm2 doctor
 pytest -q
 pvm2 validate --config experiments/original/original.yaml
 pvm2 reproduce --config experiments/original/original.yaml --min-kappa 0.50
 ```
+
+`pvm2 doctor` works on Windows, Linux and macOS.  `pvm2 doctor --full` also
+runs the reference experiment and checks kappa; add `--json` for automation.
 
 `reproduce` writes:
 
@@ -141,6 +146,7 @@ panel.  The article citation, DOI and a description of the check are in
 ## Command line
 
 ```
+pvm2 doctor          check installation, data checksums and reference kappa
 pvm2 run             run PVM2 from a NetCDF file or a YAML configuration
 pvm2 reproduce       run the configured reference experiment and validate
 pvm2 prepare         resample heterogeneous inputs onto a common lsmk grid
