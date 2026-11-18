@@ -1,0 +1,61 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using this metadata."
+title: "CPTEC-PVM2 Python reference implementation"
+type: software
+version: 0.1.0
+date-released: 2026-11-17
+license: MIT
+repository-code: "https://github.com/felipefalexandre/cptec-pvm2-python-version"
+url: "https://github.com/felipefalexandre/cptec-pvm2-python-version"
+abstract: >-
+  Grid-agnostic Python implementation of CPTEC-PVM2, the potential-vegetation
+  model of Oyama and Nobre (2004) with the natural-fire parameterisation of
+  Lapola et al. (2006), validated against the original Fortran code and the
+  observed vegetation map of Lapola et al. (2009).
+keywords:
+  - CPTEC-PVM2
+  - potential vegetation
+  - biomes
+  - climate
+  - Fortran migration
+authors:
+  - name: "PVM2 modernization project"
+references:
+  - type: article
+    title: >-
+      A simple potential vegetation model for coupling with the Simple
+      Biosphere Model (SiB)
+    authors:
+      - family-names: Oyama
+        given-names: M. D.
+      - family-names: Nobre
+        given-names: C. A.
+    journal: Revista Brasileira de Meteorologia
+    volume: 19
+    issue: 2
+    start: 203
+    end: 216
+    year: 2004
+  - type: report
+    title: >-
+      A importância da parametrização de fogo natural no CPTEC PVM
+    authors:
+      - family-names: Lapola
+        given-names: D. M.
+    year: 2006
+  - type: article
+    title: >-
+      Exploring the range of climate biome projections for tropical South
+      America: the role of CO2 fertilization and seasonality
+    authors:
+      - family-names: Lapola
+        given-names: D. M.
+      - family-names: Oyama
+        given-names: M. D.
+      - family-names: Nobre
+        given-names: C. A.
+    journal: Global Biogeochemical Cycles
+    volume: 23
+    start: GB3002
+    year: 2009
+    doi: 10.1029/2008GB003357

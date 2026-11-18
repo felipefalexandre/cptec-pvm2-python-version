@@ -11,10 +11,11 @@
 | `scripts/run_legacy.ps1` | runs the compiled Fortran model and writes its outputs |
 | `scripts/check_installation.ps1` | runs tests, validates inputs and checks the reference kappa/figure |
 | `scripts/check_regression.py` | CI golden check of the reference biome map, metrics and counts |
+| `CITATION.cff` | software citation and model-paper references |
 | `configs/` | legacy-binary, NetCDF and heterogeneous-source examples |
 | `experiments/original/` | reference experiment |
 | `tests/` | 102 tests and Fortran-generated fixtures |
-| `docs/` | CLI reference, audit, methodology, equivalence, reference-article check, this report |
+| `docs/` | CLI reference, data provenance, audit, methodology, equivalence, reference-article check, this report |
 
 The default inputs and the observed reference map are included so a fresh
 clone can reproduce the reference experiment.  Their licence is not stated
@@ -145,7 +146,7 @@ No equation, threshold or parameter value was changed.
 
 ## 8. Testing
 
-`pytest` runs 102 tests in about 60 seconds, and CI adds
+`pytest` runs 102 tests in about one minute, and CI adds
 `scripts/check_regression.py`, which compares the reference biome map hash,
 per-class counts, kappa and equilibrium years against a golden file:
 

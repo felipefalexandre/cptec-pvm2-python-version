@@ -57,9 +57,9 @@ legacy/data/reference/
 
 The binaries and the observed reference map are third-party scientific data;
 their original licence is not stated.  They are included only for scientific
-reproducibility.  See `legacy/data/README.md` for sizes, checksums and
-provenance.  The reference experiment configuration is
-`experiments/original/original.yaml`.
+reproducibility.  See `legacy/data/README.md` for sizes and checksums and
+`docs/data_provenance.md` for the provenance summary.  The reference
+experiment configuration is `experiments/original/original.yaml`.
 
 ## Quick start
 
@@ -496,6 +496,8 @@ The full reference test takes about 20 seconds; the rest take about 3 seconds.
 
 - `docs/cli_reference.md` - commands, common options, configuration keys and
   exit codes.
+- `docs/data_provenance.md` - bundled data, checksums, licensing and the
+  observed-reference map.
 - `docs/legacy_code_audit.md` — complete audit of the Fortran code, data,
   equations, compilation and risks.
 - `docs/scientific_methodology.md` — equations, parameters and units as
@@ -512,11 +514,14 @@ The full reference test takes about 20 seconds; the rest take about 3 seconds.
 The new Python code is released under the MIT licence (`LICENSE`).  The legacy
 Fortran sources, input data and reference map retain their original authorship
 and are not covered by that licence; see `NOTICE` and
-`legacy/data/README.md` before redistributing them.
+`legacy/data/README.md` before redistributing them.  Data checksums, integrity
+commands and the role of the observed reference map are documented in
+`docs/data_provenance.md`.
 
 ## Citation
 
-If you use this implementation, cite the model papers:
+Software metadata is provided in `CITATION.cff`.  If you use this
+implementation, cite the software and the model papers:
 
 - Oyama, M. D.; Nobre, C. A. A simple potential vegetation model for coupling
   with the Simple Biosphere Model (SiB). *Revista Brasileira de Meteorologia*,
@@ -527,3 +532,14 @@ If you use this implementation, cite the model papers:
   biome projections for tropical South America: the role of CO2 fertilization
   and seasonality. *Global Biogeochemical Cycles*, v. 23, GB3002, 2009.
   https://doi.org/10.1029/2008GB003357
+
+```bibtex
+@software{pvm2_python,
+  title        = {CPTEC-PVM2 Python reference implementation},
+  author       = {{PVM2 modernization project}},
+  year         = {2026},
+  version      = {0.1.0},
+  license      = {MIT},
+  url          = {https://github.com/felipefalexandre/cptec-pvm2-python-version}
+}
+```
