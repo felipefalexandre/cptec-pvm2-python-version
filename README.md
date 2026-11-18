@@ -22,7 +22,7 @@ environmental fields to float32 precision.
 | Kappa vs observed reference map | 0.525 (paper: 0.54) |
 | Legacy runtime (192x96 grid) | 3.4 s |
 | Python runtime (192x96 grid) | 18.4 s |
-| Tests | 97 collected |
+| Tests | 98 collected |
 
 Details and caveats are in `docs/numerical_equivalence.md`.
 
@@ -164,6 +164,7 @@ pvm2 doctor          check installation, data checksums and reference kappa
 pvm2 run             run PVM2 from a NetCDF file or a YAML configuration
 pvm2 reproduce       run the configured reference experiment and validate
 pvm2 prepare         resample heterogeneous inputs onto a common lsmk grid
+pvm2 pipeline        prepare heterogeneous inputs and run PVM2 in one step
 pvm2 convert-legacy  convert legacy binaries to consolidated NetCDF
 pvm2 validate        check dimensions, ranges and land-mask consistency
 pvm2 inspect         report metadata, domain, time, units and SHA-256
@@ -294,7 +295,17 @@ Supported input units are converted only when unambiguous:
 
 `pvm2 run` itself never resamples: the output grid is exactly the prepared
 input grid.  When variables come from different grids, run `pvm2 prepare`
-first.
+first, or use the combined pipeline:
+
+```bash
+pvm2 pipeline --config configs/heterogeneous.yaml --target 1 --yes
+```
+
+The pipeline writes the prepared inputs, runs the model and records both the
+preparation metadata and the prepared-file hash in `run_manifest.json`.  Use
+`--prepared-output` to choose the intermediate file and `--run-dir` or
+`--run-id` for the model output directory.  It does not compute kappa; use
+`pvm2 reproduce` for reference-map validation.
 
 ### Heterogeneous input grids
 

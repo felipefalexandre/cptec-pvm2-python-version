@@ -71,11 +71,12 @@ def build_manifest(
     run_id=None,
     artifacts=None,
     command=None,
+    preparation=None,
 ):
     """Build a JSON-serialisable provenance manifest for one run."""
     generated = datetime.now(timezone.utc).isoformat(timespec="seconds")
     config_file = file_fingerprint(cfg.source) if cfg.source else None
-    return {
+    manifest = {
         "schema_version": 2,
         "version": __version__,
         "run_id": run_id,
@@ -100,6 +101,9 @@ def build_manifest(
         "artifacts": artifacts or {},
         "outputs": str(Path(directory) / f"{cfg.output.name}.nc"),
     }
+    if preparation is not None:
+        manifest["preparation"] = preparation
+    return manifest
 
 
 def write_manifest(path, manifest):

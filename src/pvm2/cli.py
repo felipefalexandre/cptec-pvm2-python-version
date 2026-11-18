@@ -124,9 +124,12 @@ def _output_paths(cfg):
     return directory, directory / f"{cfg.output.name}.nc", run_id
 
 
-def _run_and_write(cfg):
-    _log("loading inputs")
-    data = config.load_inputs(cfg.input)
+def _run_and_write(cfg, data=None, preparation=None):
+    if data is None:
+        _log("loading inputs")
+        data = config.load_inputs(cfg.input)
+    else:
+        _log("using prepared inputs")
     ny, nx = data["landmask"].shape
     land_cells = int(np.count_nonzero(data["landmask"]))
     _log(f"grid {ny} x {nx}; CO2 = {cfg.model.co2_pa} Pa; fire = {cfg.model.fire}")
@@ -179,6 +182,7 @@ def _run_and_write(cfg):
         run_id=run_id,
         artifacts=artifacts,
         command=sys.argv,
+        preparation=preparation,
     )
     manifest_path = provenance.write_manifest(
         directory / "run_manifest.json",
@@ -274,8 +278,7 @@ def cmd_convert_legacy(args):
     return 0
 
 
-def cmd_prepare(args):
-    cfg = config.load_config(args.config, overrides=args.set)
+def _prepare_data(cfg, args, output=None):
     plan = prepare.make_plan(
         cfg.input,
         target=args.target,
@@ -296,7 +299,7 @@ def cmd_prepare(args):
         _log("compatible land-mask grids (coarsest to finest):")
         for line in prepare._format_options(plan.options).splitlines():
             _log(line.strip())
-        return 0
+        return None
 
     if plan.selected is None:
         if args.yes:
@@ -315,7 +318,7 @@ def cmd_prepare(args):
     data, info = prepare.execute(plan)
     model._prepare(data)
     tag = str(plan.selected.resolution).replace(".", "p")
-    path = Path(args.output or Path("outputs") / "prepared" / f"pvm2_inputs_{tag}.nc")
+    path = Path(output or Path("outputs") / "prepared" / f"pvm2_inputs_{tag}.nc")
     netcdf.write_inputs(path, data, attrs=data.get("attrs"))
     _log(
         f"prepared {data['landmask'].shape[0]} x {data['landmask'].shape[1]} "
@@ -324,6 +327,29 @@ def cmd_prepare(args):
     )
     _log(f"wrote {path}")
     _log(f"run with: pvm2 run --input {path}")
+    return data, info, path, plan
+
+
+def cmd_prepare(args):
+    cfg = config.load_config(args.config, overrides=args.set)
+    _prepare_data(cfg, args, args.output)
+    return 0
+
+
+def cmd_pipeline(args):
+    cfg = _config_from_args(args)
+    prepared = _prepare_data(cfg, args, args.prepared_output)
+    if prepared is None:
+        return 0
+    data, info, prepared_path, plan = prepared
+    preparation = {
+        "resolution_degrees": plan.selected.resolution,
+        "description": plan.selected.description,
+        "bounds": info["bounds"],
+        "warnings": plan.warnings,
+        "prepared_input": provenance.file_fingerprint(prepared_path),
+    }
+    _run_and_write(cfg, data=data, preparation=preparation)
     return 0
 
 
@@ -571,6 +597,37 @@ def build_parser():
     )
     _add_set(prep)
     prep.set_defaults(func=cmd_prepare)
+
+    pipe = sub.add_parser(
+        "pipeline",
+        help="prepare heterogeneous inputs and run PVM2 in one step",
+    )
+    pipe.add_argument("--config", required=True)
+    pipe.add_argument("--target", type=float, help="target resolution in degrees")
+    pipe.add_argument(
+        "--bbox",
+        nargs=4,
+        type=float,
+        metavar=("LAT_MIN", "LAT_MAX", "LON_MIN", "LON_MAX"),
+        help="crop the common domain to this box (degrees)",
+    )
+    pipe.add_argument("--landmask", help="custom landmask NetCDF file")
+    pipe.add_argument("--prepared-output", help="prepared NetCDF output path")
+    pipe.add_argument("--list", action="store_true", help="list compatible grids")
+    pipe.add_argument(
+        "--yes",
+        action="store_true",
+        help="use the recommended target without an interactive prompt",
+    )
+    pipe.add_argument("--output", help="model output directory")
+    pipe.add_argument("--co2", type=float, help="atmospheric CO2 partial pressure (Pa)")
+    pipe.add_argument("--fire", dest="fire", action="store_true", default=None)
+    pipe.add_argument("--no-fire", dest="fire", action="store_false")
+    pipe.add_argument("--max-years", type=int, dest="max_years")
+    pipe.add_argument("--no-geotiff", action="store_true")
+    _add_set(pipe)
+    _add_run_options(pipe)
+    pipe.set_defaults(func=cmd_pipeline)
 
     conv = sub.add_parser("convert-legacy", help="convert legacy binaries to NetCDF")
     conv.add_argument("--config", required=True)

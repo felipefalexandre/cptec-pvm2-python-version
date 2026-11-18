@@ -12,7 +12,7 @@
 | `scripts/check_installation.ps1` | runs tests, validates inputs and checks the reference kappa/figure |
 | `configs/` | legacy-binary, NetCDF and heterogeneous-source examples |
 | `experiments/original/` | reference experiment |
-| `tests/` | 97 tests and Fortran-generated fixtures |
+| `tests/` | 98 tests and Fortran-generated fixtures |
 | `docs/` | audit, methodology, equivalence, reference-article check, this report |
 
 The default inputs and the observed reference map are included so a fresh
@@ -128,6 +128,9 @@ No equation, threshold or parameter value was changed.
   bundled land-mask resolutions from coarsest to finest, intersects regional
   inputs (or an optional `bbox`), bilinearly resamples the climate fields to
   the selected grid at unchanged resolution, and validates plausible ranges.
+- `pipeline` — runs the prepare step and then the model on the in-memory
+  prepared fields, recording the prepared-file hash and preparation metadata
+  in the run manifest.
 - `convert-legacy` — writes a consolidated NetCDF of the six inputs.
 - `validate` — checks shapes, ranges and land-mask consistency; `--json` and
   `--report` emit machine-readable reports.
@@ -140,7 +143,7 @@ No equation, threshold or parameter value was changed.
 
 ## 8. Testing
 
-`pytest` runs 97 tests in about 51 seconds:
+`pytest` runs 98 tests in about 48 seconds:
 
 - scalar `carbon1`/`carbon2` against double-precision Fortran;
 - every biome rule, the fire switch and the transition-month search;

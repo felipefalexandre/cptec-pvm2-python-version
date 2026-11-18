@@ -37,6 +37,7 @@ def test_build_manifest_contains_config_and_input_hashes(tmp_path):
         run_id="case",
         artifacts={"netcdf": provenance.file_fingerprint(source)},
         command=["pvm2", "run"],
+        preparation={"resolution_degrees": 2.0},
     )
     assert manifest["schema_version"] == 2
     assert manifest["run_id"] == "case"
@@ -46,6 +47,7 @@ def test_build_manifest_contains_config_and_input_hashes(tmp_path):
     ).hexdigest()
     assert manifest["inputs"][0]["sha256"] == hashlib.sha256(b"climate").hexdigest()
     assert manifest["artifacts"]["netcdf"]["sha256"]
+    assert manifest["preparation"]["resolution_degrees"] == 2.0
 
 
 def test_write_manifest_is_atomic_json(tmp_path):
