@@ -30,8 +30,8 @@ def test_pipeline_prepares_then_runs(monkeypatch, tmp_path):
         lambda cfg, args, output=None: (data, {"bounds": {}}, prepared, plan),
     )
 
-    def fake_run(cfg, data=None, preparation=None):
-        calls.append((cfg, data, preparation))
+    def fake_run(cfg, data=None, preparation=None, execution=None):
+        calls.append((cfg, data, preparation, execution))
 
     monkeypatch.setattr(cli, "_run_and_write", fake_run)
     args = SimpleNamespace(
@@ -50,9 +50,14 @@ def test_pipeline_prepares_then_runs(monkeypatch, tmp_path):
         set=None,
         run_dir=False,
         run_id=None,
+        tile_cells=None,
+        checkpoint=None,
+        checkpoint_every=1,
+        resume=False,
     )
     assert cli.cmd_pipeline(args) == 0
     assert len(calls) == 1
     assert calls[0][1] is data
     assert calls[0][2]["resolution_degrees"] == 2.0
     assert calls[0][2]["prepared_input"]["sha256"]
+    assert calls[0][3]["checkpoint_every"] == 1

@@ -22,7 +22,7 @@ environmental fields to float32 precision.
 | Kappa vs observed reference map | 0.525 (paper: 0.54) |
 | Legacy runtime (192x96 grid) | 3.4 s |
 | Python runtime (192x96 grid) | 18.4 s |
-| Tests | 98 collected |
+| Tests | 101 collected |
 
 Details and caveats are in `docs/numerical_equivalence.md`.
 
@@ -160,6 +160,22 @@ dirty state, Python/package versions, input source SHA-256 hashes, output
 artifact hashes and sizes, grid, model settings and runtime metadata.  Without
 `--run-dir` or `--run-id`, existing output paths are unchanged.
 
+For large grids, `--tile-cells` limits the number of active cells handled at
+once without changing the result.  `--checkpoint` writes an atomic, resumable
+state after complete model years; use `--resume` to continue an interrupted
+run:
+
+```bash
+pvm2 run --config experiments/original/original.yaml \
+  --tile-cells 5000 --checkpoint outputs/checkpoint.npz
+pvm2 run --config experiments/original/original.yaml \
+  --checkpoint outputs/checkpoint.npz --resume
+```
+
+The checkpoint validates the grid, CO2 and water-balance input fields before
+resuming.  `--checkpoint-every N` changes the save interval from the default
+of one year.
+
 To compare with Figure 1b of Lapola et al. (2009) on page 5, open both
 GeoTIFFs in QGIS and load the style
 `legacy/data/reference/vegetacao_referencia.qml`.  The simulated map should
@@ -242,6 +258,8 @@ input:
 model:
   co2_pa: 35.35
   fire: true
+  max_equilibrium_years: 20000
+  tile_cells: null
 
 output:
   directory: outputs

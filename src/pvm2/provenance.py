@@ -72,6 +72,7 @@ def build_manifest(
     artifacts=None,
     command=None,
     preparation=None,
+    execution=None,
 ):
     """Build a JSON-serialisable provenance manifest for one run."""
     generated = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -103,6 +104,8 @@ def build_manifest(
     }
     if preparation is not None:
         manifest["preparation"] = preparation
+    if execution is not None:
+        manifest["execution"] = execution
     return manifest
 
 

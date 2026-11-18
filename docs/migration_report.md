@@ -4,7 +4,7 @@
 
 | Path | Contents |
 | --- | --- |
-| `src/pvm2/` | Python package, including `prepare.py`, `grid.py`, `ranges.py` and eight bundled lsmk presets |
+| `src/pvm2/` | Python package, including `prepare.py`, `grid.py`, `ranges.py`, `core/checkpoint.py` and eight bundled lsmk presets |
 | `legacy/fortran/` | original Fortran sources, unmodified |
 | `legacy/data/` | default inputs, observed reference map and QGIS palette |
 | `scripts/build_legacy.ps1` | reproducible legacy build (RECL adaptation and `-Co2`) |
@@ -13,7 +13,7 @@
 | `scripts/check_regression.py` | CI golden check of the reference biome map, metrics and counts |
 | `configs/` | legacy-binary, NetCDF and heterogeneous-source examples |
 | `experiments/original/` | reference experiment |
-| `tests/` | 98 tests and Fortran-generated fixtures |
+| `tests/` | 101 tests and Fortran-generated fixtures |
 | `docs/` | audit, methodology, equivalence, reference-article check, this report |
 
 The default inputs and the observed reference map are included so a fresh
@@ -144,10 +144,11 @@ No equation, threshold or parameter value was changed.
 
 ## 8. Testing
 
-`pytest` runs 98 tests in about 48 seconds, and CI adds
+`pytest` runs 101 tests in about 61 seconds, and CI adds
 `scripts/check_regression.py`, which compares the reference biome map hash,
 per-class counts, kappa and equilibrium years against a golden file:
 
+- cell tiling and checkpoint/resume against uninterrupted reference runs;
 - scalar `carbon1`/`carbon2` against double-precision Fortran;
 - every biome rule, the fire switch and the transition-month search;
 - daily budget bounds and finiteness;

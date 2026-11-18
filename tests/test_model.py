@@ -167,3 +167,45 @@ def test_max_equilibrium_years_is_forwarded():
     data = synthetic_inputs(4, 5)
     with pytest.raises(RuntimeError, match="after 2 years"):
         model.run(data, fire=False, max_equilibrium_years=2)
+
+
+def test_cell_tiling_matches_full_run():
+    data = synthetic_inputs(5, 6)
+    full = model.run(data, fire=False)
+    tiled = model.run(data, fire=False, tile_cells=4)
+    assert tiled["equilibrium_years"] == full["equilibrium_years"]
+    for name in ("bpot", "meanpp", "seanpp", "wsoil", "gsoil", "mnpp", "lai"):
+        assert np.array_equal(tiled[name], full[name])
+
+
+def test_checkpoint_resume_matches_uninterrupted(tmp_path):
+    data = synthetic_inputs(5, 6)
+    expected = model.run(data, fire=False)
+    checkpoint = tmp_path / "equilibrium.npz"
+    with pytest.raises(RuntimeError, match="after 1 years"):
+        model.run(
+            data,
+            fire=False,
+            max_equilibrium_years=1,
+            checkpoint_path=checkpoint,
+            tile_cells=4,
+        )
+    assert checkpoint.exists()
+    with pytest.raises(ValueError, match="co2_pa"):
+        model.run(
+            data,
+            co2_pa=40.0,
+            fire=False,
+            checkpoint_path=checkpoint,
+            resume=True,
+        )
+    resumed = model.run(
+        data,
+        fire=False,
+        checkpoint_path=checkpoint,
+        resume=True,
+        tile_cells=4,
+    )
+    assert resumed["equilibrium_years"] == expected["equilibrium_years"]
+    for name in ("bpot", "meanpp", "seanpp", "wsoil", "gsoil", "mnpp", "lai"):
+        assert np.array_equal(resumed[name], expected[name])

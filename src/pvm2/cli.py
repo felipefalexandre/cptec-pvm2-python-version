@@ -72,6 +72,10 @@ def _config_from_args(args):
         cfg.model.fire = args.fire
     if getattr(args, "max_years", None) is not None:
         cfg.model.max_equilibrium_years = args.max_years
+    if getattr(args, "tile_cells", None) is not None:
+        if args.tile_cells <= 0:
+            raise ValueError("--tile-cells must be positive")
+        cfg.model.tile_cells = args.tile_cells
     if getattr(args, "no_geotiff", False):
         cfg.output.geotiff = False
     if getattr(args, "run_dir", False):
@@ -124,15 +128,41 @@ def _output_paths(cfg):
     return directory, directory / f"{cfg.output.name}.nc", run_id
 
 
-def _run_and_write(cfg, data=None, preparation=None):
+def _execution_from_args(args):
+    checkpoint = getattr(args, "checkpoint", None)
+    resume = bool(getattr(args, "resume", False))
+    every = int(getattr(args, "checkpoint_every", 1))
+    if resume and not checkpoint:
+        raise ValueError("--resume requires --checkpoint")
+    if every <= 0:
+        raise ValueError("--checkpoint-every must be positive")
+    return {
+        "checkpoint": checkpoint,
+        "resume": resume,
+        "checkpoint_every": every,
+    }
+
+
+def _run_and_write(cfg, data=None, preparation=None, execution=None):
     if data is None:
         _log("loading inputs")
         data = config.load_inputs(cfg.input)
     else:
         _log("using prepared inputs")
+    execution = execution or {}
+    checkpoint = execution.get("checkpoint")
+    resume = execution.get("resume", False)
+    checkpoint_every = execution.get("checkpoint_every", 1)
     ny, nx = data["landmask"].shape
     land_cells = int(np.count_nonzero(data["landmask"]))
     _log(f"grid {ny} x {nx}; CO2 = {cfg.model.co2_pa} Pa; fire = {cfg.model.fire}")
+    if cfg.model.tile_cells:
+        _log(f"model tile size = {cfg.model.tile_cells} active cells")
+    if checkpoint:
+        _log(
+            f"checkpoint = {checkpoint}"
+            f"{' (resume)' if resume else ''}; every {checkpoint_every} year(s)"
+        )
     _log(f"model started with {land_cells} land cells")
     started = time.perf_counter()
     results = model.run(
@@ -141,6 +171,10 @@ def _run_and_write(cfg, data=None, preparation=None):
         fire=cfg.model.fire,
         max_equilibrium_years=cfg.model.max_equilibrium_years,
         progress=_progress_reporter(started),
+        tile_cells=cfg.model.tile_cells,
+        checkpoint_path=checkpoint,
+        resume=resume,
+        checkpoint_every=checkpoint_every,
     )
     elapsed = time.perf_counter() - started
     _log(f"model finished in {elapsed:.2f} s; equilibrium years = {results['equilibrium_years']}")
@@ -172,6 +206,8 @@ def _run_and_write(cfg, data=None, preparation=None):
         legacy_binary.write_biome_bundle(bundle, _legacy_bundle_fields(results))
         artifacts["legacy_binary"] = provenance.file_fingerprint(bundle)
         _log(f"wrote {bundle}")
+    if checkpoint and Path(checkpoint).exists():
+        artifacts["checkpoint"] = provenance.file_fingerprint(checkpoint)
 
     manifest = provenance.build_manifest(
         cfg,
@@ -183,6 +219,7 @@ def _run_and_write(cfg, data=None, preparation=None):
         artifacts=artifacts,
         command=sys.argv,
         preparation=preparation,
+        execution={**execution, "tile_cells": cfg.model.tile_cells},
     )
     manifest_path = provenance.write_manifest(
         directory / "run_manifest.json",
@@ -209,13 +246,15 @@ def cmd_doctor(args):
 
 def cmd_run(args):
     cfg = _config_from_args(args)
-    _run_and_write(cfg)
+    _run_and_write(cfg, execution=_execution_from_args(args))
     return 0
 
 
 def cmd_reproduce(args):
     cfg = _config_from_args(args)
-    results, data, manifest = _run_and_write(cfg)
+    results, data, manifest = _run_and_write(
+        cfg, execution=_execution_from_args(args)
+    )
     if not cfg.output.reference:
         _log("no output.reference configured; skipping kappa comparison")
         return 0
@@ -352,7 +391,12 @@ def cmd_pipeline(args):
         "warnings": plan.warnings,
         "prepared_input": provenance.file_fingerprint(prepared_path),
     }
-    _run_and_write(cfg, data=data, preparation=preparation)
+    _run_and_write(
+        cfg,
+        data=data,
+        preparation=preparation,
+        execution=_execution_from_args(args),
+    )
     return 0
 
 
@@ -521,6 +565,29 @@ def _add_run_options(parser):
     parser.add_argument(
         "--run-id",
         help="write outputs into a named run subdirectory",
+    )
+    parser.add_argument(
+        "--tile-cells",
+        type=int,
+        metavar="N",
+        help="process at most N active cells at a time",
+    )
+    parser.add_argument(
+        "--checkpoint",
+        metavar="PATH",
+        help="write a resumable checkpoint after each model year",
+    )
+    parser.add_argument(
+        "--checkpoint-every",
+        type=int,
+        default=1,
+        metavar="N",
+        help="checkpoint interval in model years (default: 1)",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="resume from --checkpoint instead of starting a new run",
     )
 
 

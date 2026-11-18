@@ -24,6 +24,7 @@ from .constants import (
     UNDEF,
     WMAX,
 )
+from . import checkpoint as checkpoint_module
 from . import constants
 
 
@@ -262,6 +263,14 @@ def _find_transition_month(wsoil2):
     return chosen.reshape(ny, nx)
 
 
+def _iter_chunks(indices, size):
+    if size is None or indices.size <= size:
+        yield indices
+        return
+    for start in range(0, indices.size, size):
+        yield indices[start : start + size]
+
+
 def environmental_variables(
     prec,
     temp,
@@ -271,13 +280,20 @@ def environmental_variables(
     par,
     max_years=20000,
     progress=None,
+    tile_cells=None,
+    checkpoint_path=None,
+    resume=False,
+    checkpoint_every=1,
 ):
     """Run the full water balance and derive the environmental variables.
 
     Parameters are arrays shaped (12, ny, nx) except ``lsmk``, ``p0`` and
     ``ca``.  Returns the nine variables written by env5.f plus monthly fields.
     ``progress`` is an optional callable receiving one event dictionary per
-    integrated month, plus a final event with ``done=True``.
+    integrated month, plus a final event with ``done=True``.  ``tile_cells``
+    limits the number of active cells processed at once without changing the
+    result; ``checkpoint_path``/``resume`` persist and restore the equilibrium
+    state after complete model years.
     """
     prec = np.asarray(prec)
     temp = np.asarray(temp)
@@ -319,25 +335,63 @@ def environmental_variables(
     p0_f = p0.reshape(ncell)
     fields_f = {name: values.reshape(12, ncell) for name, values in fields.items()}
 
+    if tile_cells is not None and tile_cells <= 0:
+        raise ValueError("tile_cells must be positive or None")
+    if checkpoint_every <= 0:
+        raise ValueError("checkpoint_every must be positive")
+    if resume and not checkpoint_path:
+        raise ValueError("resume requires a checkpoint path")
+
     w = np.full(ncell, 0.01)
     g = np.zeros(ncell)
     s = np.zeros(ncell)
     wg0 = np.full((12, ncell), -1.0)
-
     active = np.flatnonzero(land.reshape(ncell))
     land_cells = int(active.size)
+    year = 0
+
+    checkpoint_meta = None
+    if checkpoint_path or resume:
+        checkpoint_meta = {
+            "format_version": checkpoint_module.FORMAT_VERSION,
+            "shape": [int(ny), int(nx)],
+            "co2_pa": float(ca),
+            "input_sha256": checkpoint_module.input_digest(
+                {
+                    "precipitation": prec,
+                    "temperature": temp,
+                    "par": par,
+                    "pressure": p0,
+                    "landmask": lsmk,
+                }
+            ),
+        }
+    if resume:
+        saved = checkpoint_module.load(
+            checkpoint_path,
+            fields,
+            checkpoint_meta,
+        )
+        year = saved["year"]
+        w = saved["w"]
+        g = saved["g"]
+        s = saved["s"]
+        wg0 = saved["wg0"]
+        active = saved["active"]
+        for name, values in saved["fields"].items():
+            fields[name][...] = values
+
     if progress is not None:
         progress(
             {
                 "phase": "equilibrium",
-                "year": 0,
+                "year": year,
                 "month": 0,
-                "active_cells": land_cells,
+                "active_cells": int(active.size),
                 "land_cells": land_cells,
                 "done": False,
             }
         )
-    year = 0
     while active.size:
         year += 1
         if year > max_years:
@@ -348,25 +402,26 @@ def environmental_variables(
         for k in range(12):
             if active.size == 0:
                 break
-            ae = AE_SLOPE * temp_f[k, active] + AE_INTERCEPT
-            out = budget_month(
-                k,
-                w[active],
-                g[active],
-                s[active],
-                tsoil_f[k, active],
-                temp_f[k, active],
-                prec_f[k, active],
-                p0_f[active],
-                ae,
-                ca,
-                par_f[k, active],
-            )
-            for field_name, out_name in _MONTH_FIELDS.items():
-                fields_f[field_name][k, active] = out[out_name]
-            w[active] = out["w"]
-            g[active] = out["g"]
-            s[active] = out["s"]
+            for cells in _iter_chunks(active, tile_cells):
+                ae = AE_SLOPE * temp_f[k, cells] + AE_INTERCEPT
+                out = budget_month(
+                    k,
+                    w[cells],
+                    g[cells],
+                    s[cells],
+                    tsoil_f[k, cells],
+                    temp_f[k, cells],
+                    prec_f[k, cells],
+                    p0_f[cells],
+                    ae,
+                    ca,
+                    par_f[k, cells],
+                )
+                for field_name, out_name in _MONTH_FIELDS.items():
+                    fields_f[field_name][k, cells] = out[out_name]
+                w[cells] = out["w"]
+                g[cells] = out["g"]
+                s[cells] = out["s"]
             if progress is not None:
                 progress(
                     {
@@ -379,17 +434,40 @@ def environmental_variables(
                     }
                 )
 
-        wsoil_a = fields_f["wsoil"][:, active]
-        gsoil_a = fields_f["gsoil"][:, active]
-        dwww = (wsoil_a + gsoil_a - wg0[:, active]) / WMAX
-        nerro = np.sum(np.abs(dwww) > 0.001, axis=0)
-        converged = nerro == 0
-        if np.any(converged):
-            active = active[~converged]
-            if active.size:
-                wg0[:, active] = wsoil_a[:, ~converged] + gsoil_a[:, ~converged]
-        else:
-            wg0[:, active] = wsoil_a + gsoil_a
+        remaining = []
+        for cells in _iter_chunks(active, tile_cells):
+            wsoil_a = fields_f["wsoil"][:, cells]
+            gsoil_a = fields_f["gsoil"][:, cells]
+            dwww = (wsoil_a + gsoil_a - wg0[:, cells]) / WMAX
+            converged = np.sum(np.abs(dwww) > 0.001, axis=0) == 0
+            if np.any(converged):
+                keep = cells[~converged]
+                if keep.size:
+                    wg0[:, keep] = wsoil_a[:, ~converged] + gsoil_a[:, ~converged]
+                    remaining.append(keep)
+            else:
+                wg0[:, cells] = wsoil_a + gsoil_a
+                remaining.append(cells)
+        active = (
+            np.concatenate(remaining)
+            if remaining
+            else np.empty(0, dtype=np.int64)
+        )
+        if (
+            checkpoint_path
+            and (active.size == 0 or year % checkpoint_every == 0)
+        ):
+            checkpoint_module.save(
+                checkpoint_path,
+                year=year,
+                w=w,
+                g=g,
+                s=s,
+                wg0=wg0,
+                active=active,
+                fields=fields,
+                meta=checkpoint_meta,
+            )
     if progress is not None:
         progress(
             {
@@ -604,6 +682,10 @@ def potential_vegetation(
     fire=True,
     max_years=20000,
     progress=None,
+    tile_cells=None,
+    checkpoint_path=None,
+    resume=False,
+    checkpoint_every=1,
 ):
     """End-to-end CPTEC-PVM2: climate -> environmental fields -> biomes."""
     par = np.asarray(ipar_wm2) / constants.IPAR_TO_EINSTEIN
@@ -617,6 +699,10 @@ def potential_vegetation(
         par,
         max_years=max_years,
         progress=progress,
+        tile_cells=tile_cells,
+        checkpoint_path=checkpoint_path,
+        resume=resume,
+        checkpoint_every=checkpoint_every,
     )
     avgpar = np.mean(ipar_wm2, axis=0)
     bpot, ratio, d2wm, ud2w = classify(

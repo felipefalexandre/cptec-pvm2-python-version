@@ -96,6 +96,30 @@ output:
         config.load_config(path)
 
 
+def test_tile_cells_must_be_positive(tmp_path):
+    path = _write(
+        tmp_path / "case.yaml",
+        """
+input:
+  climate: input.nc
+model:
+  tile_cells: 500
+""",
+    )
+    assert config.load_config(path).model.tile_cells == 500
+    bad = _write(
+        tmp_path / "bad.yaml",
+        """
+input:
+  climate: input.nc
+model:
+  tile_cells: 0
+""",
+    )
+    with pytest.raises(config.ConfigError, match="model.tile_cells"):
+        config.load_config(bad)
+
+
 def test_top_level_must_be_mapping(tmp_path):
     path = _write(tmp_path / "bad.yaml", "- one\n- two\n")
     with pytest.raises(config.ConfigError, match="top-level"):

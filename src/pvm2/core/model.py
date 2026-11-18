@@ -79,6 +79,10 @@ def run(
     fire=True,
     max_equilibrium_years=20000,
     progress=None,
+    tile_cells=None,
+    checkpoint_path=None,
+    resume=False,
+    checkpoint_every=1,
 ):
     """Execute CPTEC-PVM2 and return all environmental and biome fields."""
     fields = _prepare(data)
@@ -93,6 +97,10 @@ def run(
         fire=fire,
         max_years=max_equilibrium_years,
         progress=progress,
+        tile_cells=tile_cells,
+        checkpoint_path=checkpoint_path,
+        resume=resume,
+        checkpoint_every=checkpoint_every,
     )
     results["co2_pa"] = float(co2_pa)
     results["fire"] = bool(fire)

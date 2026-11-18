@@ -41,7 +41,7 @@ INPUT_KEYS = {
     "lon_duplicate",
     "coordinates_file",
 }
-MODEL_KEYS = {"co2_pa", "fire", "max_equilibrium_years"}
+MODEL_KEYS = {"co2_pa", "fire", "max_equilibrium_years", "tile_cells"}
 OUTPUT_KEYS = {
     "directory",
     "dir",
@@ -92,6 +92,7 @@ class ModelConfig:
     co2_pa: float = 35.35
     fire: bool = True
     max_equilibrium_years: int = 20000
+    tile_cells: int | None = None
 
 
 @dataclass
@@ -402,10 +403,16 @@ def from_dict(
     )
     if max_years <= 0:
         _fail("model.max_equilibrium_years", "must be positive")
+    tile_cells = model.get("tile_cells")
+    if tile_cells is not None:
+        tile_cells = _as_int(tile_cells, "model.tile_cells")
+        if tile_cells <= 0:
+            _fail("model.tile_cells", "must be positive")
     model_cfg = ModelConfig(
         co2_pa=co2_pa,
         fire=_as_bool(model.get("fire", True), "model.fire"),
         max_equilibrium_years=max_years,
+        tile_cells=tile_cells,
     )
 
     out = _mapping(raw.get("output", {}), "output")
