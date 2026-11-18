@@ -1,0 +1,25 @@
+{
+  "description": "Golden regression values for the bundled reference experiment",
+  "reference_config": "experiments/original/original.yaml",
+  "kappa": 0.5254259244298152,
+  "agreement_percent": 89.71896701388889,
+  "equilibrium_years": 121,
+  "land_cells": 6003,
+  "biome_sha256": "e463112be3ab8ba63f458381a0c64f28832ceb427cdc7960178f174f59679c90",
+  "biome_counts": {
+    "0": 12429,
+    "1": 381,
+    "2": 233,
+    "3": 65,
+    "4": 465,
+    "5": 278,
+    "6": 295,
+    "7": 594,
+    "8": 210,
+    "9": 588,
+    "10": 420,
+    "11": 431,
+    "13": 136,
+    "20": 1907
+  }
+}

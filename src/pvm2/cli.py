@@ -242,8 +242,11 @@ def cmd_reproduce(args):
             _log(f"wrote {reference_tif}")
         except ValueError as exc:
             _log(f"reference GeoTIFF skipped: {exc}")
+    report_path = Path(
+        args.report or Path("reports") / "scientific_validation.html"
+    )
     path = report.write_validation_report(
-        Path("reports") / "scientific_validation.html",
+        report_path,
         metrics,
         observed,
         results["bpot"],
@@ -569,6 +572,10 @@ def build_parser():
         "--min-kappa",
         type=float,
         help="fail if the kappa against the reference map is below this value",
+    )
+    rep.add_argument(
+        "--report",
+        help="validation report path (default: reports/scientific_validation.html)",
     )
     _add_set(rep)
     _add_run_options(rep)

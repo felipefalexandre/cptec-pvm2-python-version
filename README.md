@@ -127,6 +127,16 @@ pvm2 reproduce --config experiments/original/original.yaml --min-kappa 0.50
 `pvm2 doctor` works on Windows, Linux and macOS.  `pvm2 doctor --full` also
 runs the reference experiment and checks kappa; add `--json` for automation.
 
+The CI workflow also runs the golden regression gate:
+
+```bash
+python scripts/check_regression.py --min-kappa 0.50
+```
+
+It compares kappa, agreement, equilibrium years, land-cell count, the full
+biome-map SHA-256 and per-class pixel counts against
+`experiments/original/golden.json`.
+
 `reproduce` writes:
 
 ```

@@ -10,6 +10,7 @@
 | `scripts/build_legacy.ps1` | reproducible legacy build (RECL adaptation and `-Co2`) |
 | `scripts/run_legacy.ps1` | runs the compiled Fortran model and writes its outputs |
 | `scripts/check_installation.ps1` | runs tests, validates inputs and checks the reference kappa/figure |
+| `scripts/check_regression.py` | CI golden check of the reference biome map, metrics and counts |
 | `configs/` | legacy-binary, NetCDF and heterogeneous-source examples |
 | `experiments/original/` | reference experiment |
 | `tests/` | 98 tests and Fortran-generated fixtures |
@@ -143,7 +144,9 @@ No equation, threshold or parameter value was changed.
 
 ## 8. Testing
 
-`pytest` runs 98 tests in about 48 seconds:
+`pytest` runs 98 tests in about 48 seconds, and CI adds
+`scripts/check_regression.py`, which compares the reference biome map hash,
+per-class counts, kappa and equilibrium years against a golden file:
 
 - scalar `carbon1`/`carbon2` against double-precision Fortran;
 - every biome rule, the fire switch and the transition-month search;
