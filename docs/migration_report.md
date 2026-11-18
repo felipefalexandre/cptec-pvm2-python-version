@@ -14,7 +14,7 @@
 | `configs/` | legacy-binary, NetCDF and heterogeneous-source examples |
 | `experiments/original/` | reference experiment |
 | `tests/` | 102 tests and Fortran-generated fixtures |
-| `docs/` | audit, methodology, equivalence, reference-article check, this report |
+| `docs/` | CLI reference, audit, methodology, equivalence, reference-article check, this report |
 
 The default inputs and the observed reference map are included so a fresh
 clone can reproduce the reference experiment.  Their licence is not stated

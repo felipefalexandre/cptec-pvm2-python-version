@@ -494,6 +494,8 @@ The full reference test takes about 20 seconds; the rest take about 3 seconds.
 
 ## Documentation
 
+- `docs/cli_reference.md` - commands, common options, configuration keys and
+  exit codes.
 - `docs/legacy_code_audit.md` — complete audit of the Fortran code, data,
   equations, compilation and risks.
 - `docs/scientific_methodology.md` — equations, parameters and units as
