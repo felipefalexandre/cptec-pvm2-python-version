@@ -19,8 +19,17 @@ from .validation import kappa as kappa_module
 from .validation import report
 
 
+_QUIET = False
+
+
+def _set_quiet(args):
+    global _QUIET
+    _QUIET = bool(getattr(args, "quiet", False))
+
+
 def _log(message):
-    print(f"[pvm2] {message}", flush=True)
+    if not _QUIET:
+        print(f"[pvm2] {message}", flush=True)
 
 
 def _progress_reporter(started, interval=2.0):
@@ -143,6 +152,43 @@ def _execution_from_args(args):
     }
 
 
+def _planned_output_directory(cfg):
+    base = Path(cfg.output.directory)
+    run_id = cfg.output.run_id
+    if run_id is None and cfg.output.run_directory:
+        run_id = "<timestamp>"
+    return str(base / run_id) if run_id else str(base)
+
+
+def _show_run_plan(cfg, data=None, execution=None):
+    if data is None:
+        data = config.load_inputs(cfg.input)
+    model._prepare(data)
+    execution = execution or {}
+    checkpoint = execution.get("checkpoint")
+    resume = execution.get("resume", False)
+    if resume and not Path(checkpoint).exists():
+        raise FileNotFoundError(f"checkpoint not found: {checkpoint}")
+    ny, nx = data["landmask"].shape
+    land_cells = int(np.count_nonzero(data["landmask"]))
+    _log("dry run: inputs validated; model and outputs were not run")
+    _log(
+        f"grid {ny} x {nx}; land cells = {land_cells}; "
+        f"CO2 = {cfg.model.co2_pa} Pa; fire = {cfg.model.fire}"
+    )
+    _log(
+        f"max equilibrium years = {cfg.model.max_equilibrium_years}; "
+        f"tile cells = {cfg.model.tile_cells or 'disabled'}"
+    )
+    _log(f"output directory = {_planned_output_directory(cfg)}")
+    if checkpoint:
+        _log(
+            f"checkpoint = {checkpoint}"
+            f"{' (resume)' if resume else ''}; "
+            f"every {execution.get('checkpoint_every', 1)} year(s)"
+        )
+
+
 def _run_and_write(cfg, data=None, preparation=None, execution=None):
     if data is None:
         _log("loading inputs")
@@ -245,16 +291,25 @@ def cmd_doctor(args):
 
 
 def cmd_run(args):
+    _set_quiet(args)
     cfg = _config_from_args(args)
-    _run_and_write(cfg, execution=_execution_from_args(args))
+    execution = _execution_from_args(args)
+    if getattr(args, "dry_run", False):
+        _show_run_plan(cfg, execution=execution)
+        return 0
+    _run_and_write(cfg, execution=execution)
     return 0
 
 
 def cmd_reproduce(args):
+    _set_quiet(args)
     cfg = _config_from_args(args)
-    results, data, manifest = _run_and_write(
-        cfg, execution=_execution_from_args(args)
-    )
+    execution = _execution_from_args(args)
+    if getattr(args, "dry_run", False):
+        _show_run_plan(cfg, execution=execution)
+        _log(f"reference map = {cfg.output.reference or 'not configured'}")
+        return 0
+    results, data, manifest = _run_and_write(cfg, execution=execution)
     if not cfg.output.reference:
         _log("no output.reference configured; skipping kappa comparison")
         return 0
@@ -320,7 +375,7 @@ def cmd_convert_legacy(args):
     return 0
 
 
-def _prepare_data(cfg, args, output=None):
+def _prepare_data(cfg, args, output=None, write=True):
     plan = prepare.make_plan(
         cfg.input,
         target=args.target,
@@ -361,29 +416,49 @@ def _prepare_data(cfg, args, output=None):
     model._prepare(data)
     tag = str(plan.selected.resolution).replace(".", "p")
     path = Path(output or Path("outputs") / "prepared" / f"pvm2_inputs_{tag}.nc")
-    netcdf.write_inputs(path, data, attrs=data.get("attrs"))
     _log(
         f"prepared {data['landmask'].shape[0]} x {data['landmask'].shape[1]} "
         f"grid at {plan.selected.resolution:g} deg "
         f"({prepare._format_bounds(info['bounds'])})"
     )
-    _log(f"wrote {path}")
-    _log(f"run with: pvm2 run --input {path}")
+    if write:
+        netcdf.write_inputs(path, data, attrs=data.get("attrs"))
+        _log(f"wrote {path}")
+        _log(f"run with: pvm2 run --input {path}")
+    else:
+        _log(f"dry run: prepared inputs not written ({path})")
     return data, info, path, plan
 
 
 def cmd_prepare(args):
+    _set_quiet(args)
     cfg = config.load_config(args.config, overrides=args.set)
-    _prepare_data(cfg, args, args.output)
+    _prepare_data(
+        cfg,
+        args,
+        args.output,
+        write=not getattr(args, "dry_run", False),
+    )
     return 0
 
 
 def cmd_pipeline(args):
+    _set_quiet(args)
     cfg = _config_from_args(args)
-    prepared = _prepare_data(cfg, args, args.prepared_output)
+    execution = _execution_from_args(args)
+    dry_run = getattr(args, "dry_run", False)
+    prepared = _prepare_data(
+        cfg,
+        args,
+        args.prepared_output,
+        write=not dry_run,
+    )
     if prepared is None:
         return 0
     data, info, prepared_path, plan = prepared
+    if dry_run:
+        _show_run_plan(cfg, data=data, execution=execution)
+        return 0
     preparation = {
         "resolution_degrees": plan.selected.resolution,
         "description": plan.selected.description,
@@ -395,7 +470,7 @@ def cmd_pipeline(args):
         cfg,
         data=data,
         preparation=preparation,
-        execution=_execution_from_args(args),
+        execution=execution,
     )
     return 0
 
@@ -589,6 +664,16 @@ def _add_run_options(parser):
         action="store_true",
         help="resume from --checkpoint instead of starting a new run",
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="validate inputs and print the run plan without executing",
+    )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="suppress informational and progress messages",
+    )
 
 
 def build_parser():
@@ -668,6 +753,16 @@ def build_parser():
         "--yes",
         action="store_true",
         help="use the recommended target without an interactive prompt",
+    )
+    prep.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="resample and validate without writing the prepared file",
+    )
+    prep.add_argument(
+        "--quiet",
+        action="store_true",
+        help="suppress informational messages",
     )
     _add_set(prep)
     prep.set_defaults(func=cmd_prepare)

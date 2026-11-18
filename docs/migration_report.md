@@ -13,7 +13,7 @@
 | `scripts/check_regression.py` | CI golden check of the reference biome map, metrics and counts |
 | `configs/` | legacy-binary, NetCDF and heterogeneous-source examples |
 | `experiments/original/` | reference experiment |
-| `tests/` | 101 tests and Fortran-generated fixtures |
+| `tests/` | 102 tests and Fortran-generated fixtures |
 | `docs/` | audit, methodology, equivalence, reference-article check, this report |
 
 The default inputs and the observed reference map are included so a fresh
@@ -122,7 +122,8 @@ No equation, threshold or parameter value was changed.
 - `doctor` — checks dependencies, data checksums, presets and optionally
   reproduces the reference experiment.
 - `run` — from YAML or NetCDF; overrides CO2, fire and maximum years, and
-  logs throttled equilibrium progress for long fine-grid runs.
+  logs throttled equilibrium progress for long fine-grid runs.  `--dry-run`
+  validates inputs without executing and `--quiet` suppresses progress.
 - `reproduce` — runs the configured experiment and writes the validation
   report when a reference map is configured.
 - `prepare` — inspects per-variable grids and their domains, offers compatible
@@ -144,7 +145,7 @@ No equation, threshold or parameter value was changed.
 
 ## 8. Testing
 
-`pytest` runs 101 tests in about 61 seconds, and CI adds
+`pytest` runs 102 tests in about 60 seconds, and CI adds
 `scripts/check_regression.py`, which compares the reference biome map hash,
 per-class counts, kappa and equilibrium years against a golden file:
 

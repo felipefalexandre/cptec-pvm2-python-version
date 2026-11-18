@@ -22,7 +22,7 @@ environmental fields to float32 precision.
 | Kappa vs observed reference map | 0.525 (paper: 0.54) |
 | Legacy runtime (192x96 grid) | 3.4 s |
 | Python runtime (192x96 grid) | 18.4 s |
-| Tests | 101 collected |
+| Tests | 102 collected |
 
 Details and caveats are in `docs/numerical_equivalence.md`.
 
@@ -101,7 +101,14 @@ pvm2 run --config experiments/original/original.yaml --co2 51.5375 --no-fire
 
 Fine grids take many equilibrium years, so `run` logs progress at most every
 two seconds (year, month, converged/land cells, elapsed time) and a final
-summary.  `--max-years` changes the equilibrium limit.
+summary.  `--max-years` changes the equilibrium limit.  Use `--dry-run` to
+load and validate inputs without starting the model, and `--quiet` to suppress
+progress messages:
+
+```bash
+pvm2 run --config experiments/original/original.yaml --dry-run
+pvm2 reproduce --config experiments/original/original.yaml --quiet
+```
 
 ## Installation check and reference figure
 
